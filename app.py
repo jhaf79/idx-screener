@@ -10,7 +10,7 @@ st.set_page_config(page_title="IDX Pro Radar", layout="wide", page_icon="🏹")
 
 # Ambil Secrets untuk Pushbullet
 try:
-    PUSH_TOKEN = st.secrets["o.xCp2U6AnZALtYIpfF5lTMNSccKgcUoi3"]
+    PUSH_TOKEN = "o.xCp2U6AnZALtYIpfF5lTMNSccKgcUoi3"
 except:
     st.error("PUSH_TOKEN tidak ditemukan di Secrets!")
     st.stop()
@@ -94,3 +94,4 @@ if raw_data is not None and not raw_data.empty:
         st.table(pd.DataFrame(signals))
 else:
     st.error("Gagal mengambil data. Coba reboot app di dashboard Streamlit.")
+

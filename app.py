@@ -39,7 +39,8 @@ WATCHLIST = [
     'AMMN.JK', 'BUMI.JK', 'TPIA.JK', 'BBCA.JK', 'UNTR.JK', 'KLBF.JK',
     'OPMS.JK', 'MBMA.JK', 'KPIG.JK', 'INDS.JK', 'BELL.JK', 'BIPI.JK',
     'BULL.JK', 'MDKA.JK', 'ELTY.JK', 'ZATA.JK', 'TRIN.JK', 'UNSP.JK',
-    'ROCK.JK', 'JIHD.JK', 'FITT.JK', 'BEST.JK', 'MSIN.JK', 'SOCI.JK'
+    'ROCK.JK', 'JIHD.JK', 'FITT.JK', 'BEST.JK', 'MSIN.JK', 'SOCI.JK',
+    'BUVA.JK', 'DEWA.JK', 'IFSH.JK', 'INDY.JK', 'BKSL.JK', 'IHSG.JK'
 ]
 
 st.title("🏹 IDX Real-time Radar + Notif HP")
@@ -97,6 +98,7 @@ if raw_data is not None and not raw_data.empty:
         st.table(pd.DataFrame(signals))
 else:
     st.error("Gagal mengambil data. Coba reboot app di dashboard Streamlit.")
+
 
 
 

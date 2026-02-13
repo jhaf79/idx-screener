@@ -8,12 +8,8 @@ import requests
 # --- 1. SETTING HALAMAN ---
 st.set_page_config(page_title="IDX Pro Radar", layout="wide", page_icon="🏹")
 
-# Ambil Secrets untuk Pushbullet
-try:
-    PUSH_TOKEN = "o.xCp2U6AnZALtYIpfF5lTMNSccKgcUoi3"
-except:
-    st.error("PUSH_TOKEN tidak ditemukan di Secrets!")
-    st.stop()
+# PUSH_TOKEN Langsung (Ganti jika perlu)
+PUSH_TOKEN = "o.xCp2U6AnZALtYIpfF5lTMNSccKgcUoi3"
 
 # Refresh setiap 60 detik
 st_autorefresh(interval=60000, key="idx_final_notif")
@@ -28,14 +24,12 @@ def send_push(title, body):
         pass
 
 def get_limit(price):
-    """Mengembalikan persentase batas atas/bawah sesuai fraksi harga IDX"""
+    """Batas Auto Rejection IDX"""
     if 50 <= price <= 200: return 34.0
     if 200 < price <= 5000: return 24.0
     return 19.0
 
 # --- 3. DAFTAR SAHAM (Watchlist) ---
-# Tambahkan kode .JK di belakang ticker
-# --- 3. DAFTAR SAHAM ---
 WATCHLIST = [
     'ADRO.JK', 'BRMS.JK', 'UNIC.JK', 'BBRI.JK', 'PTRO.JK', 'ASII.JK', 
     'ANTM.JK', 'PTBA.JK', 'MEDC.JK', 'HRUM.JK', 'BBNI.JK', 'BMRI.JK', 
@@ -47,13 +41,12 @@ WATCHLIST = [
 ]
 
 st.title("🏹 IDX Real-time Radar: ARA & LONGSOR")
-st.write(f"🕒 Update: {datetime.now().strftime('%H:%M:%S')} WIB")
+st.write(f"🕒 Terakhir Update: {datetime.now().strftime('%H:%M:%S')} WIB")
 
 # --- 4. PENGAMBILAN DATA ---
 @st.cache_data(ttl=55)
 def fetch_data(tickers):
     try:
-        # Mengambil data 5 hari terakhir untuk mendapatkan perbandingan Close
         return yf.download(tickers, period="5d", interval="1d", group_by='ticker', progress=False)
     except:
         return None
@@ -62,7 +55,8 @@ raw_data = fetch_data(WATCHLIST)
 
 if raw_data is not None and not raw_data.empty:
     signals = []
-    is_open = 9 <= datetime.now().hour < 16 # Notif hanya jam bursa
+    # Notif aktif jam 09:00 - 16:00
+    is_open = 9 <= datetime.now().hour < 16 
     
     for ticker in WATCHLIST:
         try:
@@ -76,10 +70,10 @@ if raw_data is not None and not raw_data.empty:
             status = "🔎 Monitoring"
             alert_needed = False
             
-            # Persentase batas (ARA/ARB)
+            # Batas ARA/ARB
             limit_pct = get_limit(last_price)
             
-            # --- LOGIKA DETEKSI NAIK/TURUN ---
+            # Logika Sinyal
             if change >= limit_pct:
                 status = "🔥 NEAR ARA"
                 alert_needed = True
@@ -95,7 +89,7 @@ if raw_data is not None and not raw_data.empty:
 
             # KIRIM NOTIFIKASI
             if alert_needed and is_open:
-                send_push(f"IDX {ticker}", f"Price: {int(last_price)} ({change:.2f}%) - {status}")
+                send_push(f"IDX ALERT: {ticker}", f"Harga: {int(last_price)} ({change:.2f}%) - {status}")
 
             signals.append({
                 "Ticker": ticker.replace('.JK', ''),
@@ -107,35 +101,15 @@ if raw_data is not None and not raw_data.empty:
             continue
 
     if signals:
-        # Tampilkan Tabel dengan Highlight Warna
-        df_display = pd.DataFrame(signals)
+        # Urutkan dari perubahan tertinggi (top gainer di atas, top loser di bawah)
+        df_display = pd.DataFrame(signals).sort_values(by='Chg%', ascending=False)
         
         def color_signal(val):
-            color = 'white'
             if "ARA" in val or "UP" in val: color = '#2ecc71' # Hijau
             elif "ARB" in val or "DROP" in val: color = '#e74c3c' # Merah
+            else: color = 'white'
             return f'color: {color}; font-weight: bold'
 
         st.table(df_display.style.applymap(color_signal, subset=['Sinyal']))
-else:
-    st.error("Gagal mengambil data dari Yahoo Finance. Coba Reboot App.")
-
-
-
-            # KIRIM NOTIFIKASI (Hanya jika jam bursa & ada sinyal)
-            if alert_needed and is_open:
-                send_push(f"IDX ALERT: {ticker}", f"Harga: {last_price} ({change:.2f}%) - {status}")
-
-            signals.append({
-                "Ticker": ticker.replace('.JK', ''),
-                "Harga": int(last_price),
-                "Chg%": round(change, 2),
-                "Sinyal": status
-            })
-        except:
-            continue
-
-    if signals:
-        st.table(pd.DataFrame(signals))
 else:
     st.error("Gagal mengambil data. Coba reboot app di dashboard Streamlit.")

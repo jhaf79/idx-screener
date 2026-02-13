@@ -34,7 +34,7 @@ def get_ara_limit(price):
 
 # --- 3. DAFTAR SAHAM ---
 WATCHLIST = [
-    'ADRO.JK', 'BRMS.JK', 'UNIC.JK', 'BBRI.JK', 'TLKM.JK', 'ASII.JK', 
+    'ADRO.JK', 'BRMS.JK', 'UNIC.JK', 'BBRI.JK', 'PTRO.JK', 'ASII.JK', 
     'ANTM.JK', 'PTBA.JK', 'MEDC.JK', 'HRUM.JK', 'BBNI.JK', 'BMRI.JK', 
     'AMMN.JK', 'BUMI.JK', 'TPIA.JK', 'BBCA.JK', 'UNTR.JK', 'KLBF.JK',
     'OPMS.JK', 'MBMA.JK', 'KPIG.JK', 'INDS.JK', 'BELL.JK', 'BIPI.JK',
@@ -97,6 +97,7 @@ if raw_data is not None and not raw_data.empty:
         st.table(pd.DataFrame(signals))
 else:
     st.error("Gagal mengambil data. Coba reboot app di dashboard Streamlit.")
+
 
 
 

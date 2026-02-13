@@ -13,9 +13,9 @@ st_autorefresh(interval=60000, key="idx_final_refresh")
 
 # --- 2. DAFTAR SAHAM (Watchlist Utama) ---
 WATCHLIST = [
-    'ADRO.JK', 'BRMS.JK', 'GOTO.JK', 'BBRI.JK', 'TLKM.JK', 'ASII.JK', 
-    'ANTM.JK', 'PTBA.JK', 'MEDC.JK', 'HRUM.JK', 'BBNI.JK', 'BMRI.JK', 
-    'AMMN.JK', 'BUMI.JK', 'TPIA.JK', 'BBCA.JK', 'UNTR.JK', 'KLBF.JK'
+    'BUMI.JK', 'BRMS.JK', 'INDS.JK', 'MBMA.JK', 'BELL.JK', 'KPIG.JK', 
+    'ANTM.JK', 'BIPI.JK', 'UNSP.JK', 'ZATA.JK', 'TRIN.JK', 'OPMS.JK', 
+    'AMMN.JK', 'ELTY.JK', 'TPIA.JK', 'BBCA.JK', 'UNTR.JK', 'KLBF.JK'
 ]
 
 # --- 3. FUNGSI LOGIKA ---
@@ -95,3 +95,4 @@ if raw_data is not None and not raw_data.empty:
 else:
     st.error("Server Yahoo sedang sibuk atau koneksi terputus.")
     st.info("🔄 Mencoba menghubungkan kembali dalam 60 detik...")
+

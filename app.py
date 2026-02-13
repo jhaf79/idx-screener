@@ -3,15 +3,15 @@ import yfinance as yf
 import pandas as pd
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime
+import time
 
-# --- 1. KONFIGURASI HALAMAN ---
-st.set_page_config(page_title="IDX Super Radar", layout="wide", page_icon="🏹")
+# --- 1. SETTING HALAMAN ---
+st.set_page_config(page_title="IDX Pro Radar", layout="wide", page_icon="🏹")
 
-# Auto-refresh setiap 30 detik
-st_autorefresh(interval=30000, key="idx_refresh_stable")
+# Auto-refresh setiap 60 detik (Lebih aman untuk Yahoo)
+st_autorefresh(interval=60000, key="idx_final_refresh")
 
-# --- 2. DATABASE SAHAM ---
-# Gunakan daftar yang lebih ringkas dulu untuk memastikan koneksi stabil
+# --- 2. DAFTAR SAHAM (Watchlist Utama) ---
 WATCHLIST = [
     'ADRO.JK', 'BRMS.JK', 'GOTO.JK', 'BBRI.JK', 'TLKM.JK', 'ASII.JK', 
     'ANTM.JK', 'PTBA.JK', 'MEDC.JK', 'HRUM.JK', 'BBNI.JK', 'BMRI.JK', 
@@ -24,78 +24,74 @@ def get_ara_limit(price):
     if 200 < price <= 5000: return 24.0
     return 19.0
 
-# --- 4. TAMPILAN UI ---
-st.title("🏹 IDX Real-time Radar (Stable Mode)")
-st.write(f"Terakhir Update: {datetime.now().strftime('%H:%M:%S')} WIB")
+# --- 4. HEADER UI ---
+st.title("🏹 IDX Real-time Radar")
+st.write(f"🕒 Terakhir Update: {datetime.now().strftime('%H:%M:%S')} WIB")
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Status", "Running")
-col2.metric("Interval", "30s")
-col3.metric("Source", "Yahoo Finance")
+# --- 5. PENGAMBILAN DATA MASSAL ---
+@st.cache_data(ttl=55) # Cache sedikit di bawah interval refresh
+def fetch_data(tickers):
+    try:
+        # Mengunduh data 5 hari terakhir untuk perbandingan harga
+        data = yf.download(tickers, period="5d", interval="1d", group_by='ticker', progress=False)
+        return data
+    except Exception as e:
+        return None
 
-st.divider()
+# --- 6. PROSES & TAMPILAN ---
+raw_data = fetch_data(WATCHLIST)
 
-# --- 5. PROSES PENGAMBILAN DATA ---
-signals = []
-
-with st.spinner('Menghubungkan ke server Yahoo...'):
+if raw_data is not None and not raw_data.empty:
+    signals = []
+    
     for ticker in WATCHLIST:
         try:
-            # Mengambil data harian (1d) untuk mendapatkan harga Close kemarin & hari ini
-            stock = yf.Ticker(ticker)
-            df = stock.history(period="2d") # Ambil 2 hari terakhir
-            
-            if len(df) < 2:
-                continue
+            # Ambil data spesifik saham
+            df_s = raw_data[ticker]
+            if len(df_s) < 2: continue
 
-            last_price = df['Close'].iloc[-1]
-            prev_close = df['Close'].iloc[-2]
-            daily_change = ((last_price - prev_close) / prev_close) * 100
-            volume = df['Volume'].iloc[-1]
+            last_price = float(df_s['Close'].iloc[-1])
+            prev_close = float(df_s['Close'].iloc[-2])
+            change = ((last_price - prev_close) / prev_close) * 100
+            vol = int(df_s['Volume'].iloc[-1])
             
-            # Ambil Metrik Historis (High 20 Hari)
-            # Menggunakan cache agar tidak membebani server
-            @st.cache_data(ttl=3600)
-            def get_high_20d(t):
-                h = yf.download(t, period="30d", progress=False)
-                return h['High'].iloc[-21:-1].max()
-            
-            h20 = get_high_20d(ticker)
-            
-            # Penentuan Sinyal
+            # Deteksi Sinyal
             status = "🔎 Monitoring"
-            if daily_change >= get_ara_limit(last_price):
-                status = "🔥 NEAR ARA"
-            elif last_price > h20:
-                status = "🚀 BREAKOUT"
+            ara_trigger = get_ara_limit(last_price)
             
+            if change >= ara_trigger: status = "🔥 NEAR ARA"
+            elif change >= 15: status = "📈 STRONG UP"
+            elif change <= -10: status = "⚠️ WARNING"
+
             signals.append({
                 "Ticker": ticker.replace('.JK', ''),
                 "Harga": int(last_price),
-                "Change (%)": round(daily_change, 2),
-                "Volume": int(volume),
+                "Chg%": round(change, 2),
+                "Volume": f"{vol:,}",
                 "Sinyal": status
             })
-        except Exception as e:
-            # Jika satu saham gagal, lewati dan lanjut ke saham berikutnya
+        except:
             continue
 
-# --- 6. TAMPILKAN HASIL ---
-if signals:
-    res_df = pd.DataFrame(signals)
-    
-    # Styling Tabel
-    def make_pretty(val):
-        color = 'white'
-        if val == "🔥 NEAR ARA": color = '#ff4b4b'
-        elif val == "🚀 BREAKOUT": color = '#29b09d'
-        return f'background-color: {color}; color: black; font-weight: bold'
+    # Tampilkan Tabel
+    if signals:
+        res_df = pd.DataFrame(signals)
+        
+        # Pewarnaan Sinyal
+        def color_map(val):
+            bg = 'transparent'
+            if val == "🔥 NEAR ARA": bg = '#8b0000'
+            elif val == "📈 STRONG UP": bg = '#006400'
+            elif val == "⚠️ WARNING": bg = '#4a4a00'
+            return f'background-color: {bg}; color: white; font-weight: bold'
 
-    st.dataframe(
-        res_df.style.applymap(make_pretty, subset=['Sinyal']),
-        use_container_width=True,
-        hide_index=True
-    )
+        st.dataframe(
+            res_df.style.applymap(color_map, subset=['Sinyal']),
+            use_container_width=True,
+            hide_index=True
+        )
+    else:
+        st.warning("Data berhasil diunduh tapi tidak ada sinyal yang cocok.")
 else:
-    st.error("Gagal mengambil data dari Yahoo Finance.")
-    st.info("Tips: Coba refresh halaman manual atau tunggu 1 menit. Yahoo terkadang membatasi akses jika terlalu sering.")
+    st.error("Server Yahoo sedang sibuk atau koneksi terputus.")
+    st.info("🔄 Mencoba menghubungkan kembali dalam 60 detik...")

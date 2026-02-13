@@ -57,7 +57,8 @@ with st.spinner('Memindai seluruh bursa...'):
         df = pd.DataFrame(all_data)
         
         # Filter awal agar tidak terlalu berat (Naik > 4%)
-        candidates = df[pd.to_numeric(df['change_percent']) > 4].copy()
+        #candidates = df[pd.to_numeric(df['change_percent']) > 4].copy()
+        candidates = df[pd.to_numeric(df['change_percent']) > -100].copy()
         
         signals = []
         for _, row in candidates.iterrows():
@@ -84,9 +85,12 @@ with st.spinner('Memindai seluruh bursa...'):
                 msg = f"[{kelas}] {ticker} @{price} ({chg}%)"
                 send_push(alert_type, msg)
                 signals.append({"Signal": alert_type, "Ticker": ticker, "Price": price, "Kelas": kelas})
+            else:
+                signals.append({"Signal": "Monitoring", "Ticker": ticker, "Price": price, "Kelas": kelas})
 
         if signals:
             st.table(pd.DataFrame(signals))
         else:
 
             st.info("Belum ada pergerakan panas terdeteksi.")
+

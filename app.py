@@ -54,16 +54,32 @@ def get_ara_limit(price):
 
 # --- 3. PROSES DATA ---
 def run_scanner():
-    url = f"https://api.goapi.io/v1/stock/idx/prices?api_key={API_KEY}"
-    res = requests.get(url)
+    # Daftar saham yang paling likuid saja agar tidak kena blokir Yahoo
+    # Anda bisa menambah daftar ini sampai 50-100 saham
+    tickers = ['ADRO.JK', 'BRMS.JK', 'GOTO.JK', 'BBRI.JK', 'TLKM.JK', 
+               'ASII.JK', 'ANTM.JK', 'PTBA.JK', 'MEDC.JK', 'HRUM.JK']
     
-    if res.status_code != 200:
-        st.error(f"Gagal mengambil data! Code: {res.status_code}")
-        if res.status_code == 401: st.warning("API Key salah atau tidak valid.")
-        return None
-
-    all_data = res.json()['data']['results']
-    return pd.DataFrame(all_data)
+    data_list = []
+    for t in tickers:
+        try:
+            s = yf.Ticker(t)
+            hist = s.history(period="2d")
+            if len(hist) < 2: continue
+            
+            last_price = hist['Close'].iloc[-1]
+            prev_price = hist['Close'].iloc[-2]
+            change = ((last_price - prev_price) / prev_price) * 100
+            vol = hist['Volume'].iloc[-1]
+            
+            data_list.append({
+                'symbol': t.replace('.JK', ''),
+                'last': last_price,
+                'change_percent': change,
+                'volume': vol
+            })
+        except:
+            continue
+    return pd.DataFrame(data_list)
 
 # --- 4. TAMPILAN UI ---
 st.title("🏹 IDX Full Market Radar")
@@ -152,3 +168,4 @@ if df_market is not None:
             return f'color: {color}; font-weight: bold'
 
         st.table(res_df.style.applymap(color_signal, subset=['Sinyal']))
+

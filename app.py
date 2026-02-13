@@ -6,8 +6,8 @@ from streamlit_autorefresh import st_autorefresh
 from datetime import datetime
 
 # --- CONFIG (WAJIB ISI) ---
-PUSH_TOKEN = "ISI_TOKEN_PUSHBULLET_ANDA"
-API_KEY = "ISI_API_KEY_GOAPI_ANDA"
+PUSH_TOKEN = st.secrets["PUSH_TOKEN"]
+API_KEY = st.secrets["API_KEY"]
 
 # Refresh otomatis setiap 3 menit
 st_autorefresh(interval=180000, key="idx_hunter_counter")
@@ -88,4 +88,5 @@ with st.spinner('Memindai seluruh bursa...'):
         if signals:
             st.table(pd.DataFrame(signals))
         else:
+
             st.info("Belum ada pergerakan panas terdeteksi.")

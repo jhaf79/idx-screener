@@ -5,17 +5,21 @@ import yfinance as yf
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime
 
-# --- CONFIG (PENTING: Harus paling atas) ---
-st.set_page_config(page_title="IDX Pro Hunter", layout="wide")
+# --- 1. CONFIG (Wajib di baris pertama) ---
+st.set_page_config(page_title="IDX Pro Hunter", layout="wide", page_icon="🏹")
 
-# Ambil Secrets
-PUSH_TOKEN = st.secrets["PUSH_TOKEN"]
-API_KEY = st.secrets["API_KEY"]
+# Ambil Secrets dari Streamlit Cloud
+try:
+    PUSH_TOKEN = st.secrets["PUSH_TOKEN"]
+    API_KEY = st.secrets["API_KEY"]
+except:
+    st.error("Secrets belum dikonfigurasi! Masukkan PUSH_TOKEN dan API_KEY di Settings > Secrets.")
+    st.stop()
 
 # Refresh otomatis setiap 3 menit
-st_autorefresh(interval=180000, key="idx_hunter_counter")
+count = st_autorefresh(interval=180000, key="idx_hunter_counter")
 
-# --- FUNGSI PENDUKUNG ---
+# --- 2. FUNGSI PENDUKUNG ---
 @st.cache_data(ttl=3600)
 def get_metrics(ticker):
     try:
@@ -30,50 +34,65 @@ def get_metrics(ticker):
     except: return None
 
 def get_market_class(mkt_cap):
+    if not mkt_cap: return "🔥 LAPIS 3"
     mkt_cap_triliun = mkt_cap / 1e12
     if mkt_cap_triliun > 100: return "💎 LAPIS 1"
     if 10 <= mkt_cap_triliun <= 100: return "🥈 LAPIS 2"
     return "🔥 LAPIS 3"
 
 def send_push(title, body):
-    requests.post('https://api.pushbullet.com/v2/pushes', 
-                  headers={'Access-Token': PUSH_TOKEN}, 
-                  json={"type": "note", "title": title, "body": body})
+    try:
+        requests.post('https://api.pushbullet.com/v2/pushes', 
+                      headers={'Access-Token': PUSH_TOKEN}, 
+                      json={"type": "note", "title": title, "body": body})
+    except: pass
 
 def get_ara_limit(price):
     if 50 <= price <= 200: return 34.0
     if 200 < price <= 5000: return 24.0
     return 19.0
 
-# --- UI HEADER ---
-st.title("🏹 IDX Full Market Radar")
-st.write(f"Terakhir Scan: {datetime.now().strftime('%H:%M:%S')} WIB")
-
-# --- PROSES SCANNING ---
-with st.spinner('Memindai seluruh bursa...'):
+# --- 3. PROSES DATA ---
+def run_scanner():
     url = f"https://api.goapi.io/v1/stock/idx/prices?api_key={API_KEY}"
     res = requests.get(url)
     
-    if res.status_code == 200:
-        all_data = res.json()['data']['results']
-        df = pd.DataFrame(all_data)
-        
-        # --- SEKARANG BARU BISA TAMPILKAN METRIC ---
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Status Market", "CLOSED" if datetime.now().hour >= 16 or datetime.now().hour < 9 else "OPEN")
-        col2.metric("Total Saham Dipantau", len(df))
-        col3.metric("Auto-Refresh", "ON (3m)")
-        st.divider()
+    if res.status_code != 200:
+        st.error(f"Gagal mengambil data! Code: {res.status_code}")
+        if res.status_code == 401: st.warning("API Key salah atau tidak valid.")
+        return None
 
-        # Filter untuk testing (semua saham masuk)
-        candidates = df[pd.to_numeric(df['change_percent']) > -100].copy()
-        
-        # Batasi jumlah yang diproses saat market tutup agar tidak lemot (misal 20 saham teratas)
-        if datetime.now().hour >= 16 or datetime.now().hour < 9:
-            st.info("Market Tutup. Menampilkan 20 saham teratas untuk simulasi tampilan.")
-            candidates = candidates.head(20)
-        
-        signals = []
+    all_data = res.json()['data']['results']
+    return pd.DataFrame(all_data)
+
+# --- 4. TAMPILAN UI ---
+st.title("🏹 IDX Full Market Radar")
+st.caption(f"Update Terakhir: {datetime.now().strftime('%H:%M:%S')} WIB | Refresh Ke-{count}")
+
+df_market = run_scanner()
+
+if df_market is not None:
+    # Dashboard Metrics
+    col1, col2, col3 = st.columns(3)
+    is_open = 9 <= datetime.now().hour < 16
+    col1.metric("Status Market", "OPEN" if is_open else "CLOSED", delta=None)
+    col2.metric("Total Saham", len(df_market))
+    col3.metric("Auto-Refresh", "3 Menit")
+    
+    st.divider()
+
+    # Filter Kandidat (Testing: > -100 agar muncul semua saat market tutup)
+    # Kembalikan ke > 4 untuk penggunaan asli di jam bursa
+    candidates = df_market[pd.to_numeric(df_market['change_percent']) > -100].copy()
+    
+    # Batasi proses agar tidak lemot jika market tutup
+    if not is_open:
+        st.info("Market Tutup: Menampilkan simulasi 15 saham teratas.")
+        candidates = candidates.head(15)
+
+    signals = []
+    
+    with st.status("Menganalisis pergerakan harga...", expanded=True) as status:
         for _, row in candidates.iterrows():
             ticker = row['symbol']
             price = float(row['last'])
@@ -83,27 +102,53 @@ with st.spinner('Memindai seluruh bursa...'):
             m = get_metrics(ticker)
             if not m: continue
             
-            # Ambil Market Cap dari yfinance
-            info = yf.Ticker(f"{ticker}.JK").info
-            mkt_cap = info.get('marketCap', 0)
-            kelas = get_market_class(mkt_cap)
-            
-            # Logika Deteksi
+            # Info Lapis (Market Cap)
+            try:
+                info = yf.Ticker(f"{ticker}.JK").info
+                m_cap = info.get('marketCap', 0)
+                kelas = get_market_class(m_cap)
+            except:
+                kelas = "🔥 LAPIS 3"
+
+            # Logika Sinyal
             alert_type = None
             if chg >= get_ara_limit(price): alert_type = "🔥 NEAR ARA"
             elif price > m['high_20d'] and vol > (m['avg_vol_20d'] * 1.5): alert_type = "🚀 BREAKOUT"
             elif chg > 10 and m['prev_change'] > 15: alert_type = "📈 REPEAT ARA"
             
             if alert_type:
-                msg = f"[{kelas}] {ticker} @{price} ({chg}%)"
-                # send_push(alert_type, msg) # Matikan ini saat testing agar tidak spam HP
-                signals.append({"Signal": alert_type, "Ticker": ticker, "Price": price, "Kelas": kelas})
+                signals.append({
+                    "Waktu": datetime.now().strftime('%H:%M'),
+                    "Ticker": ticker,
+                    "Sinyal": alert_type,
+                    "Harga": f"Rp {price:,.0f}",
+                    "Change": f"{chg}%",
+                    "Kelas": kelas
+                })
+                # Kirim Notif jika jam bursa
+                if is_open:
+                    send_push(alert_type, f"{ticker} @{price} ({chg}%) - {kelas}")
             else:
-                signals.append({"Signal": "Monitoring", "Ticker": ticker, "Price": price, "Kelas": kelas})
+                signals.append({
+                    "Waktu": datetime.now().strftime('%H:%M'),
+                    "Ticker": ticker,
+                    "Sinyal": "🔎 Monitoring",
+                    "Harga": f"Rp {price:,.0f}",
+                    "Change": f"{chg}%",
+                    "Kelas": kelas
+                })
+        status.update(label="Analisis Selesai!", state="complete", expanded=False)
 
-        if signals:
-            st.table(pd.DataFrame(signals))
-        else:
-            st.info("Belum ada pergerakan panas terdeteksi.")
-    else:
-        st.error("Gagal mengambil data dari API. Periksa API_KEY Anda.")
+    # Tampilkan Tabel
+    if signals:
+        st.subheader("Radar Results")
+        res_df = pd.DataFrame(signals)
+        
+        # Pewarnaan Tabel
+        def color_signal(val):
+            if "ARA" in val: color = '#ff4b4b'
+            elif "BREAKOUT" in val: color = '#29b09d'
+            else: color = '#7f7f7f'
+            return f'color: {color}; font-weight: bold'
+
+        st.table(res_df.style.applymap(color_signal, subset=['Sinyal']))

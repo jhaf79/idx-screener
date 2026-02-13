@@ -5,7 +5,10 @@ import yfinance as yf
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime
 
-# --- CONFIG (WAJIB ISI) ---
+# --- CONFIG (PENTING: Harus paling atas) ---
+st.set_page_config(page_title="IDX Pro Hunter", layout="wide")
+
+# Ambil Secrets
 PUSH_TOKEN = st.secrets["PUSH_TOKEN"]
 API_KEY = st.secrets["API_KEY"]
 
@@ -16,13 +19,13 @@ st_autorefresh(interval=180000, key="idx_hunter_counter")
 @st.cache_data(ttl=3600)
 def get_metrics(ticker):
     try:
-        df = yf.download(f"{ticker}.JK", period="40d", progress=False)
-        if len(df) < 21: return None
+        df_h = yf.download(f"{ticker}.JK", period="40d", progress=False)
+        if len(df_h) < 21: return None
         return {
-            'high_20d': float(df['High'].iloc[-21:-1].max()),
-            'avg_vol_20d': float(df['Volume'].iloc[-21:-1].mean()),
-            'prev_close': float(df['Close'].iloc[-2]),
-            'prev_change': float(((df['Close'].iloc[-2] - df['Open'].iloc[-2])/df['Open'].iloc[-2])*100)
+            'high_20d': float(df_h['High'].iloc[-21:-1].max()),
+            'avg_vol_20d': float(df_h['Volume'].iloc[-21:-1].mean()),
+            'prev_close': float(df_h['Close'].iloc[-2]),
+            'prev_change': float(((df_h['Close'].iloc[-2] - df_h['Open'].iloc[-2])/df_h['Open'].iloc[-2])*100)
         }
     except: return None
 
@@ -41,16 +44,8 @@ def get_ara_limit(price):
     if 50 <= price <= 200: return 34.0
     if 200 < price <= 5000: return 24.0
     return 19.0
-# Tambahkan ini untuk mempercantik UI
-col1, col2, col3 = st.columns(3)
-col1.metric("Status Market", "CLOSED" if datetime.now().hour >= 16 else "OPEN")
-col2.metric("Total Saham Dipantau", len(df))
-col3.metric("Auto-Refresh", "ON (3m)")
 
-st.divider() # Garis pemisah
-
-# --- UI STREAMLIT ---
-st.set_page_config(page_title="IDX Pro Hunter", layout="wide")
+# --- UI HEADER ---
 st.title("🏹 IDX Full Market Radar")
 st.write(f"Terakhir Scan: {datetime.now().strftime('%H:%M:%S')} WIB")
 
@@ -63,9 +58,20 @@ with st.spinner('Memindai seluruh bursa...'):
         all_data = res.json()['data']['results']
         df = pd.DataFrame(all_data)
         
-        # Filter awal agar tidak terlalu berat (Naik > 4%)
-        #candidates = df[pd.to_numeric(df['change_percent']) > 4].copy()
+        # --- SEKARANG BARU BISA TAMPILKAN METRIC ---
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Status Market", "CLOSED" if datetime.now().hour >= 16 or datetime.now().hour < 9 else "OPEN")
+        col2.metric("Total Saham Dipantau", len(df))
+        col3.metric("Auto-Refresh", "ON (3m)")
+        st.divider()
+
+        # Filter untuk testing (semua saham masuk)
         candidates = df[pd.to_numeric(df['change_percent']) > -100].copy()
+        
+        # Batasi jumlah yang diproses saat market tutup agar tidak lemot (misal 20 saham teratas)
+        if datetime.now().hour >= 16 or datetime.now().hour < 9:
+            st.info("Market Tutup. Menampilkan 20 saham teratas untuk simulasi tampilan.")
+            candidates = candidates.head(20)
         
         signals = []
         for _, row in candidates.iterrows():
@@ -90,7 +96,7 @@ with st.spinner('Memindai seluruh bursa...'):
             
             if alert_type:
                 msg = f"[{kelas}] {ticker} @{price} ({chg}%)"
-                send_push(alert_type, msg)
+                # send_push(alert_type, msg) # Matikan ini saat testing agar tidak spam HP
                 signals.append({"Signal": alert_type, "Ticker": ticker, "Price": price, "Kelas": kelas})
             else:
                 signals.append({"Signal": "Monitoring", "Ticker": ticker, "Price": price, "Kelas": kelas})
@@ -98,7 +104,6 @@ with st.spinner('Memindai seluruh bursa...'):
         if signals:
             st.table(pd.DataFrame(signals))
         else:
-
             st.info("Belum ada pergerakan panas terdeteksi.")
-
-
+    else:
+        st.error("Gagal mengambil data dari API. Periksa API_KEY Anda.")

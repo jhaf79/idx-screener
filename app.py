@@ -41,6 +41,13 @@ def get_ara_limit(price):
     if 50 <= price <= 200: return 34.0
     if 200 < price <= 5000: return 24.0
     return 19.0
+# Tambahkan ini untuk mempercantik UI
+col1, col2, col3 = st.columns(3)
+col1.metric("Status Market", "CLOSED" if datetime.now().hour >= 16 else "OPEN")
+col2.metric("Total Saham Dipantau", len(df))
+col3.metric("Auto-Refresh", "ON (3m)")
+
+st.divider() # Garis pemisah
 
 # --- UI STREAMLIT ---
 st.set_page_config(page_title="IDX Pro Hunter", layout="wide")
@@ -93,4 +100,5 @@ with st.spinner('Memindai seluruh bursa...'):
         else:
 
             st.info("Belum ada pergerakan panas terdeteksi.")
+
 

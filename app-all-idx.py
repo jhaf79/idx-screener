@@ -8,7 +8,7 @@ from datetime import datetime
 st.set_page_config(page_title="IDX Global Scanner", layout="wide")
 
 # API KEY & TOKEN (Pastikan API_KEY GoAPI Anda aktif)
-API_KEY = "437d40e0-6135-5e0b-ff16-ff17b2ae" # Ganti dengan API Key GoAPI Anda
+API_KEY = "f49cdbbb-6746-5a80-77cb-23ccf5c3" # Ganti dengan API Key GoAPI Anda
 PUSH_TOKEN = "o.xCp2U6AnZALtYIpfF5lTMNSccKgcUoi3"
 
 st_autorefresh(interval=60000, key="idx_full_market")
@@ -111,3 +111,4 @@ if data_raw:
 else:
 
     st.error("Gagal menarik data dari API GoAPI. Cek API Key Anda.")
+

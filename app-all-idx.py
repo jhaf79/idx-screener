@@ -8,7 +8,7 @@ from datetime import datetime
 st.set_page_config(page_title="IDX Global Scanner", layout="wide")
 
 # API KEY & TOKEN (Pastikan API_KEY GoAPI Anda aktif)
-API_KEY = "3425f38a-e95e-5152-4753-f7cc9164" # Ganti dengan API Key GoAPI Anda
+API_KEY = "437d40e0-6135-5e0b-ff16-ff17b2ae" # Ganti dengan API Key GoAPI Anda
 PUSH_TOKEN = "o.xCp2U6AnZALtYIpfF5lTMNSccKgcUoi3"
 
 st_autorefresh(interval=60000, key="idx_full_market")
@@ -109,4 +109,5 @@ if data_raw:
             df_down = df_final[df_final['Chg%'] <= -10].sort_values(by='Chg%', ascending=True)
             st.dataframe(df_down, use_container_width=True, hide_index=True)
 else:
+
     st.error("Gagal menarik data dari API GoAPI. Cek API Key Anda.")

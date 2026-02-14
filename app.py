@@ -41,7 +41,9 @@ st.caption(f"Update: {datetime.now().strftime('%H:%M:%S')} WIB")
 # --- 4. DATA PROCESSING ---
 @st.cache_data(ttl=55)
 def fetch_data(tickers):
-    try: return yf.download(tickers, period="5d", interval="1d", group_by='ticker', progress=False)
+    try: 
+        # Ambil 10 hari untuk hitung rata-rata volume
+        return yf.download(tickers, period="10d", interval="1d", group_by='ticker', progress=False)
     except: return None
 
 raw_data = fetch_data(WATCHLIST)
@@ -54,17 +56,23 @@ if raw_data is not None and not raw_data.empty:
     for ticker in WATCHLIST:
         try:
             df_s = raw_data[ticker]
-            if len(df_s) < 2: continue
+            if len(df_s) < 3: continue
 
             last_price = float(df_s['Close'].iloc[-1])
             prev_close = float(df_s['Close'].iloc[-2])
             change = ((last_price - prev_close) / prev_close) * 100
             
+            # Hitung Volume Spike (Bandingkan vs rata-rata 5 hari sebelumnya)
+            last_vol = df_s['Volume'].iloc[-1]
+            avg_vol = df_s['Volume'].iloc[-6:-1].mean()
+            is_spike = last_vol > (avg_vol * 1.5)
+            vol_label = "⚡" if is_spike else "" # Icon petir untuk spike
+
             status = "🔎 Monitor"
             alert_needed = False
             limit_pct = get_limit(last_price)
             
-            # --- LOGIKA STATUS TANPA JEDA ---
+            # --- LOGIKA STATUS ---
             if change >= limit_pct:
                 status = "🔥 ARA"
                 alert_needed = True
@@ -81,14 +89,16 @@ if raw_data is not None and not raw_data.empty:
                 status = "📉 DROP"
                 alert_needed = True
 
-            # NOTIFIKASI SEBARIS/RINGKAS
+            # NOTIFIKASI RINGKAS (Tambahkan petir jika spike)
             if alert_needed and is_open:
-                send_push(f"{status}: {ticker.replace('.JK','')}", f"{int(last_price)} ({change:.2f}%)")
+                spike_txt = " +SPIKE" if is_spike else ""
+                send_push(f"{status}{spike_txt}: {ticker.replace('.JK','')}", f"{int(last_price)} ({change:.2f}%)")
 
             signals.append({
                 "Ticker": ticker.replace('.JK', ''),
                 "Price": int(last_price),
                 "Chg%": round(change, 2),
+                "Spike": vol_label,
                 "Signal": status
             })
         except: continue
@@ -96,14 +106,15 @@ if raw_data is not None and not raw_data.empty:
     if signals:
         df_display = pd.DataFrame(signals).sort_values(by='Chg%', ascending=False)
         
-        # TAMPILAN SEBARIS (Dataframe lebih rapi di HP daripada Table)
+        # TAMPILAN SEBARIS
         st.dataframe(
             df_display,
             column_config={
-                "Ticker": st.column_config.TextColumn("Ticker"),
-                "Price": st.column_config.NumberColumn("Price", format="Rp %d"),
-                "Chg%": st.column_config.NumberColumn("Chg%", format="%.2f%%"),
-                "Signal": st.column_config.TextColumn("Signal")
+                "Ticker": st.column_config.TextColumn("Ticker", width="small"),
+                "Price": st.column_config.NumberColumn("Price", format="Rp %d", width="small"),
+                "Chg%": st.column_config.NumberColumn("Chg%", format="%.2f%%", width="small"),
+                "Spike": st.column_config.TextColumn("Spike", width="small"),
+                "Signal": st.column_config.TextColumn("Signal", width="small")
             },
             hide_index=True,
             use_container_width=True

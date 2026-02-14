@@ -29,18 +29,27 @@ st.caption(f"Update: {datetime.now().strftime('%H:%M:%S')} WIB | Tanpa API Key")
 
 # --- 3. DAFTAR 150 SAHAM TERAKTIF (LQ45 + KOMPAS100 + GORENGAN RAMAI) ---
 FULL_LIST = [
-    'ADRO.JK','AMRT.JK','ANKM.JK','ANTM.JK','ASII.JK','BBCA.JK','BBNI.JK','BBRI.JK','BBTN.JK','BMRI.JK',
-    'BRMS.JK','BRPT.JK','BUKA.JK','BUMI.JK','CPIN.JK','GOTO.JK','HRUM.JK','ICBP.JK','INCO.JK','INDF.JK',
-    'INKP.JK','ITMG.JK','KLBF.JK','MDKA.JK','MEDC.JK','PGAS.JK','PTBA.JK','PTPP.JK','SIDO.JK','SMGR.JK',
-    'TPIA.JK','TLKM.JK','TOWR.JK','UNTR.JK','UNVR.JK','AMMN.JK','AWAN.JK','BELI.JK','BSDE.JK','CHIP.JK',
-    'CUAN.JK','DOOH.JK','FILM.JK','GGRM.JK','HEAL.JK','MBMA.JK','MTEL.JK','MYOR.JK','NCKL.JK','PTRO.JK',
-    'ADMR.JK','AKRA.JK','AUTO.JK','BBYB.JK','BCIC.JK','BEBS.JK','BFIN.JK','BIRD.JK','BKSL.JK','BRIS.JK',
-    'CARE.JK','CARS.JK','DEWA.JK','DOID.JK','ELSA.JK','ENRG.JK','ESSA.JK','FORU.JK','GEMS.JK','HOKI.JK',
-    'HUMI.JK','INDY.JK','INKP.JK','ISAT.JK','ITMA.JK','KEEN.JK','KIJA.JK','LPKR.JK','LPPF.JK','MAIN.JK',
-    'MAPI.JK','MAPA.JK','MDSS.JK','MIKA.JK','MLPL.JK','MPPA.JK','MSIN.JK','NANO.JK','NATO.JK','NZIA.JK',
-    'PANI.JK','PANR.JK','PEGE.JK','PGRS.JK','PNBN.JK','PNLF.JK','RAJA.JK','RMKE.JK','SAGE.JK','SCMA.JK',
-    'SGER.JK','SMRA.JK','SOUL.JK','SRTG.JK','SSIA.JK','STAA.JK','TINS.JK','TRIS.JK','TYRE.JK','WIFI.JK',
-    'WIKA.JK','WTON.JK','YPAS.JK','ZATA.JK','FIRE.JK','KAYU.JK','SBMA.JK','STRK.JK','TGUK.JK','WIDI.JK'
+    'ADMR.JK', 'ADRO.JK', 'AKRA.JK', 'AMMN.JK', 'AMRT.JK', 'ANKM.JK', 'ANTM.JK', 
+    'ASII.JK', 'AUTO.JK', 'AWAN.JK', 'BAIK.JK', 'BBCA.JK', 'BBNI.JK', 'BBRI.JK', 
+    'BBTN.JK', 'BBYB.JK', 'BCIC.JK', 'BEBS.JK', 'BELI.JK', 'BELL.JK', 'BEST.JK', 
+    'BFIN.JK', 'BIPI.JK', 'BIRD.JK', 'BKSL.JK', 'BMRI.JK', 'BRIS.JK', 'BRMS.JK', 
+    'BRPT.JK', 'BSDE.JK', 'BUKA.JK', 'BULL.JK', 'BUMI.JK', 'BUVA.JK', 'CARE.JK', 
+    'CARS.JK', 'CHIP.JK', 'CPIN.JK', 'CUAN.JK', 'DAAZ.JK', 'DEWA.JK', 'DOID.JK', 
+    'DOOH.JK', 'ELSA.JK', 'ELTY.JK', 'ENRG.JK', 'ESSA.JK', 'FILM.JK', 'FIRE.JK', 
+    'FITT.JK', 'FORU.JK', 'GEMS.JK', 'GGRM.JK', 'GOTO.JK', 'HEAL.JK', 'HOKI.JK', 
+    'HRUM.JK', 'HUMI.JK', 'ICBP.JK', 'IFSH.JK', 'INCO.JK', 'INDF.JK', 'INDY.JK', 
+    'INDS.JK', 'INKP.JK', 'ISAT.JK', 'ITMA.JK', 'ITMG.JK', 'JIHD.JK', 'KAYU.JK', 
+    'KEEN.JK', 'KIJA.JK', 'KLBF.JK', 'KPIG.JK', 'LPKR.JK', 'LPPF.JK', 'MAIN.JK', 
+    'MAPA.JK', 'MAPI.JK', 'MBMA.JK', 'MDKA.JK', 'MDSS.JK', 'MEDC.JK', 'MIKA.JK', 
+    'MINA.JK', 'MLPL.JK', 'MPPA.JK', 'MSIN.JK', 'MTEL.JK', 'MYOR.JK', 'NANO.JK', 
+    'NATO.JK', 'NCKL.JK', 'NZIA.JK', 'OPMS.JK', 'PADI.JK', 'PANI.JK', 'PANR.JK', 
+    'PEGE.JK', 'PGAS.JK', 'PGRS.JK', 'PNBN.JK', 'PNLF.JK', 'PTBA.JK', 'PTRO.JK', 
+    'PTPP.JK', 'RAJA.JK', 'RLCO.JK', 'RMKE.JK', 'ROCK.JK', 'SAGE.JK', 'SBMA.JK', 
+    'SCMA.JK', 'SGER.JK', 'SIDO.JK', 'SMGR.JK', 'SMRA.JK', 'SOCI.JK', 'SOUL.JK', 
+    'SRTG.JK', 'SSIA.JK', 'STAA.JK', 'STRK.JK', 'SUPA.JK', 'TGUK.JK', 'TINS.JK', 
+    'TLKM.JK', 'TOWR.JK', 'TPIA.JK', 'TRIN.JK', 'TRIS.JK', 'TRUK.JK', 'TYRE.JK', 
+    'UNIC.JK', 'UNSP.JK', 'UNTR.JK', 'UNVR.JK', 'VKTR.JK', 'WIDI.JK', 'WIFI.JK', 
+    'WIIM.JK', 'WIKA.JK', 'WTON.JK', 'YPAS.JK', 'ZATA.JK'
 ]
 
 # --- 4. DATA PROCESSING ---
@@ -114,3 +123,4 @@ if raw_data is not None and not raw_data.empty:
             st.dataframe(df_down, use_container_width=True, hide_index=True)
 else:
     st.error("Gagal menarik data. Coba refresh halaman.")
+

@@ -5,30 +5,13 @@ from streamlit_autorefresh import st_autorefresh
 from datetime import datetime
 import requests
 
-# --- 1. SETTING HALAMAN ---
-st.set_page_config(page_title="IDX Super Radar", layout="wide")
-
+# --- 1. KONFIGURASI ---
+st.set_page_config(page_title="IDX Momentum Radar", layout="wide")
 PUSH_TOKEN = "o.xCp2U6AnZALtYIpfF5lTMNSccKgcUoi3"
-st_autorefresh(interval=30000, key="idx_stable_radar")
+st_autorefresh(interval=30000, key="idx_final_radar")
 
-# --- 2. FUNGSI ---
-def send_push(title, body):
-    try:
-        requests.post('https://api.pushbullet.com/v2/pushes', 
-                      headers={'Access-Token': PUSH_TOKEN}, 
-                      json={"type": "note", "title": title, "body": body})
-    except: pass
-
-def get_limit(price):
-    if 50 <= price <= 200: return 34.0
-    if 200 < price <= 5000: return 24.0
-    return 19.0
-
-st.title("🏹 IDX Super Radar (150+ Active Stocks)")
-st.caption(f"Update: {datetime.now().strftime('%H:%M:%S')} WIB | Tanpa API Key")
-
-# --- 3. DAFTAR 150 SAHAM TERAKTIF (LQ45 + KOMPAS100 + GORENGAN RAMAI) ---
-FULL_LIST = [
+# --- 2. DAFTAR SAHAM (Watchlist Anda + Gabungan Terfilter) ---
+RAW_WATCHLIST = [
     'ADMR.JK', 'ADRO.JK', 'AKRA.JK', 'AMMN.JK', 'AMRT.JK', 'ANKM.JK', 'ANTM.JK', 
     'ASII.JK', 'AUTO.JK', 'AWAN.JK', 'BAIK.JK', 'BBCA.JK', 'BBNI.JK', 'BBRI.JK', 
     'BBTN.JK', 'BBYB.JK', 'BCIC.JK', 'BEBS.JK', 'BELI.JK', 'BELL.JK', 'BEST.JK', 
@@ -51,22 +34,40 @@ FULL_LIST = [
     'UNIC.JK', 'UNSP.JK', 'UNTR.JK', 'UNVR.JK', 'VKTR.JK', 'WIDI.JK', 'WIFI.JK', 
     'WIIM.JK', 'WIKA.JK', 'WTON.JK', 'YPAS.JK', 'ZATA.JK'
 ]
+WATCHLIST = sorted(list(set(RAW_WATCHLIST)))
 
-# --- 4. DATA PROCESSING ---
+# --- 3. FUNGSI ---
+def send_push(title, body):
+    try:
+        requests.post('https://api.pushbullet.com/v2/pushes', 
+                      headers={'Access-Token': PUSH_TOKEN}, 
+                      json={"type": "note", "title": title, "body": body})
+    except: pass
+
+def get_limit(price):
+    if 50 <= price <= 200: return 34.0
+    if 200 < price <= 5000: return 24.0
+    return 19.0
+
+# --- 4. TAMPILAN HEADER ---
+st.title("🏹 IDX Super Radar (30s)")
+st.caption(f"Update Terakhir: {datetime.now().strftime('%H:%M:%S')} WIB")
+
+# --- 5. DATA PROCESSING ---
 @st.cache_data(ttl=25)
 def fetch_data(tickers):
-    try: 
-        return yf.download(tickers, period="5d", interval="1d", group_by='ticker', progress=False)
+    try: return yf.download(tickers, period="10d", interval="1d", group_by='ticker', progress=False)
     except: return None
 
-raw_data = fetch_data(FULL_LIST)
+raw_data = fetch_data(WATCHLIST)
 
 if raw_data is not None and not raw_data.empty:
     signals = []
     now = datetime.now()
+    # Jam bursa: Senin-Jumat, 09:00-16:00 WIB
     is_open = (9 <= now.hour < 16) and (now.weekday() < 5)
     
-    for ticker in FULL_LIST:
+    for ticker in WATCHLIST:
         try:
             df_s = raw_data[ticker]
             if len(df_s) < 3: continue
@@ -75,26 +76,30 @@ if raw_data is not None and not raw_data.empty:
             prev_close = float(df_s['Close'].iloc[-2])
             change = ((last_price - prev_close) / prev_close) * 100
             
-            # Filter: Jangan tampilkan yang harganya tidak bergerak DAN volume kecil
+            # Data Volume
             last_vol = df_s['Volume'].iloc[-1]
-            if change == 0 and last_vol < 1000: continue
-
-            # Volume Spike (vs rata-rata 5 hari)
             avg_vol = df_s['Volume'].iloc[-6:-1].mean()
+            
+            # --- FILTER: ANTI SAHAM TIDUR ---
+            if last_vol == 0: continue
+
+            # Volume Spike (1.5x Rata-rata)
             is_spike = last_vol > (avg_vol * 1.5) if avg_vol > 0 else False
             vol_label = "⚡" if is_spike else ""
 
             limit_pct = get_limit(last_price)
             status = "🔎 Monitor"
-            alert = False
+            alert_needed = False
             
-            if change >= limit_pct: status = "🔥 ARA"; alert = True
-            elif change >= 10: status = "📈 STRONG"; alert = True
-            elif 3 <= change < 10: status = "🚀 MOVE"; alert = True
-            elif change <= -limit_pct: status = "💀 ARB"; alert = True
-            elif change <= -10: status = "📉 DROP"; alert = True
+            # Logika Signal
+            if change >= limit_pct: status = "🔥 ARA"; alert_needed = True
+            elif change >= 10: status = "📈 STRONG"; alert_needed = True
+            elif 3 <= change < 10: status = "🚀 MOVE"; alert_needed = True
+            elif change <= -limit_pct: status = "💀 ARB"; alert_needed = True
+            elif change <= -10: status = "📉 DROP"; alert_needed = True
 
-            if alert and is_open:
+            # Kirim Notifikasi
+            if alert_needed and is_open:
                 spike_txt = " +SPIKE" if is_spike else ""
                 send_push(f"{status}{spike_txt}: {ticker.replace('.JK','')}", f"{int(last_price)} ({change:.2f}%)")
 
@@ -104,23 +109,32 @@ if raw_data is not None and not raw_data.empty:
                 "Chg%": round(change, 2),
                 "Spike": vol_label,
                 "Signal": status,
-                "Vol": int(last_vol)
+                "Vol": int(last_vol),
+                "is_spike": is_spike
             })
         except: continue
 
     if signals:
-        df_res = pd.DataFrame(signals)
-        
-        tab1, tab2 = st.tabs(["🚀 MOMENTUM (UP)", "📉 DROPPING (DOWN)"])
+        df_display = pd.DataFrame(signals)
+        tab1, tab2 = st.tabs(["⚡ HIGH VOLUME SPIKE", "📋 ALL ACTIVE"])
         
         with tab1:
-            # Tampilkan yang naik, prioritaskan yang ada Spike (⚡)
-            df_up = df_res[df_res['Chg%'] >= 2].sort_values(by=['Spike', 'Chg%'], ascending=False)
-            st.dataframe(df_up, use_container_width=True, hide_index=True)
-            
+            # Hanya tampilkan yang Spike ⚡
+            df_spike = df_display[df_display['is_spike'] == True].sort_values(by='Chg%', ascending=False)
+            if not df_spike.empty:
+                st.dataframe(df_spike.drop(columns=['is_spike']), use_container_width=True, hide_index=True)
+            else:
+                st.info("Belum ada lonjakan volume terdeteksi.")
+        
         with tab2:
-            df_down = df_res[df_res['Chg%'] <= -2].sort_values(by='Chg%', ascending=True)
-            st.dataframe(df_down, use_container_width=True, hide_index=True)
+            # Semua yang tidak tidur, urut dari kenaikan tertinggi
+            st.dataframe(df_display.drop(columns=['is_spike']).sort_values(by='Chg%', ascending=False), 
+                         use_container_width=True, hide_index=True)
 else:
-    st.error("Gagal menarik data. Coba refresh halaman.")
+    st.error("Gagal memuat data dari Yahoo Finance.")
 
+# --- 6. TOMBOL TES PUSHBULLET (DI BAWAH) ---
+st.divider()
+if st.button("🔔 TES NOTIFIKASI KE HP"):
+    send_push("✅ TEST RADAR", "Notifikasi berhasil terhubung ke radar Anda!")
+    st.success("Cek HP Anda sekarang!")

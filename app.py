@@ -32,7 +32,8 @@ WATCHLIST = [
     'OPMS.JK', 'MBMA.JK', 'KPIG.JK', 'INDS.JK', 'BELL.JK', 'BIPI.JK',
     'BULL.JK', 'MDKA.JK', 'ELTY.JK', 'ZATA.JK', 'TRIN.JK', 'UNSP.JK',
     'ROCK.JK', 'JIHD.JK', 'FITT.JK', 'BEST.JK', 'MSIN.JK', 'SOCI.JK',
-    'BUVA.JK', 'DEWA.JK', 'IFSH.JK', 'INDY.JK', 'BKSL.JK', 'NCKL.JK'
+    'BUVA.JK', 'DEWA.JK', 'IFSH.JK', 'INDY.JK', 'BKSL.JK', 'NCKL.JK',
+    'INCO.JK', 'WIIM.JK', 'PADI.JK', 'PANI.JK', 'RLCO.JK', 'SUPA.JK'
 ]
 
 st.title("🏹 IDX Momentum Radar")
@@ -121,3 +122,4 @@ if raw_data is not None and not raw_data.empty:
         )
 else:
     st.error("Gagal memuat data.")
+

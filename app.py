@@ -26,15 +26,27 @@ def get_limit(price):
 
 # --- 3. DAFTAR SAHAM ---
 WATCHLIST = [
-    'ADRO.JK', 'BRMS.JK', 'UNIC.JK', 'BBRI.JK', 'PTRO.JK', 'ASII.JK', 
-    'ANTM.JK', 'PTBA.JK', 'MEDC.JK', 'HRUM.JK', 'BBNI.JK', 'BMRI.JK', 
-    'AMMN.JK', 'BUMI.JK', 'TPIA.JK', 'BBCA.JK', 'UNTR.JK', 'KLBF.JK',
-    'OPMS.JK', 'MBMA.JK', 'KPIG.JK', 'INDS.JK', 'BELL.JK', 'BIPI.JK',
-    'BULL.JK', 'MDKA.JK', 'ELTY.JK', 'ZATA.JK', 'TRIN.JK', 'UNSP.JK',
-    'ROCK.JK', 'JIHD.JK', 'FITT.JK', 'BEST.JK', 'MSIN.JK', 'SOCI.JK',
-    'BUVA.JK', 'DEWA.JK', 'IFSH.JK', 'INDY.JK', 'BKSL.JK', 'NCKL.JK',
-    'INCO.JK', 'WIIM.JK', 'PADI.JK', 'PANI.JK', 'RLCO.JK', 'SUPA.JK',
-    'VKTR.JK', 'ENRG.JK', 'MINA.JK', 'DAAZ.JK', 'BAIK.JK', 'TRUK.JK'
+    'ADMR.JK', 'ADRO.JK', 'AKRA.JK', 'AMMN.JK', 'AMRT.JK', 'ANKM.JK', 'ANTM.JK', 
+    'ASII.JK', 'AUTO.JK', 'AWAN.JK', 'BAIK.JK', 'BBCA.JK', 'BBNI.JK', 'BBRI.JK', 
+    'BBTN.JK', 'BBYB.JK', 'BCIC.JK', 'BEBS.JK', 'BELI.JK', 'BELL.JK', 'BEST.JK', 
+    'BFIN.JK', 'BIPI.JK', 'BIRD.JK', 'BKSL.JK', 'BMRI.JK', 'BRIS.JK', 'BRMS.JK', 
+    'BRPT.JK', 'BSDE.JK', 'BUKA.JK', 'BULL.JK', 'BUMI.JK', 'BUVA.JK', 'CARE.JK', 
+    'CARS.JK', 'CHIP.JK', 'CPIN.JK', 'CUAN.JK', 'DAAZ.JK', 'DEWA.JK', 'DOID.JK', 
+    'DOOH.JK', 'ELSA.JK', 'ELTY.JK', 'ENRG.JK', 'ESSA.JK', 'FILM.JK', 'FIRE.JK', 
+    'FITT.JK', 'FORU.JK', 'GEMS.JK', 'GGRM.JK', 'GOTO.JK', 'HEAL.JK', 'HOKI.JK', 
+    'HRUM.JK', 'HUMI.JK', 'ICBP.JK', 'IFSH.JK', 'INCO.JK', 'INDF.JK', 'INDY.JK', 
+    'INDS.JK', 'INKP.JK', 'ISAT.JK', 'ITMA.JK', 'ITMG.JK', 'JIHD.JK', 'KAYU.JK', 
+    'KEEN.JK', 'KIJA.JK', 'KLBF.JK', 'KPIG.JK', 'LPKR.JK', 'LPPF.JK', 'MAIN.JK', 
+    'MAPA.JK', 'MAPI.JK', 'MBMA.JK', 'MDKA.JK', 'MDSS.JK', 'MEDC.JK', 'MIKA.JK', 
+    'MINA.JK', 'MLPL.JK', 'MPPA.JK', 'MSIN.JK', 'MTEL.JK', 'MYOR.JK', 'NANO.JK', 
+    'NATO.JK', 'NCKL.JK', 'NZIA.JK', 'OPMS.JK', 'PADI.JK', 'PANI.JK', 'PANR.JK', 
+    'PEGE.JK', 'PGAS.JK', 'PGRS.JK', 'PNBN.JK', 'PNLF.JK', 'PTBA.JK', 'PTRO.JK', 
+    'PTPP.JK', 'RAJA.JK', 'RLCO.JK', 'RMKE.JK', 'ROCK.JK', 'SAGE.JK', 'SBMA.JK', 
+    'SCMA.JK', 'SGER.JK', 'SIDO.JK', 'SMGR.JK', 'SMRA.JK', 'SOCI.JK', 'SOUL.JK', 
+    'SRTG.JK', 'SSIA.JK', 'STAA.JK', 'STRK.JK', 'SUPA.JK', 'TGUK.JK', 'TINS.JK', 
+    'TLKM.JK', 'TOWR.JK', 'TPIA.JK', 'TRIN.JK', 'TRIS.JK', 'TRUK.JK', 'TYRE.JK', 
+    'UNIC.JK', 'UNSP.JK', 'UNTR.JK', 'UNVR.JK', 'VKTR.JK', 'WIDI.JK', 'WIFI.JK', 
+    'WIIM.JK', 'WIKA.JK', 'WTON.JK', 'YPAS.JK', 'ZATA.JK'
 ]
 
 st.title("🏹 IDX Momentum Radar")
@@ -123,5 +135,6 @@ if raw_data is not None and not raw_data.empty:
         )
 else:
     st.error("Gagal memuat data.")
+
 
 

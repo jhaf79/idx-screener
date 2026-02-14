@@ -1,17 +1,15 @@
 import streamlit as st
-import requests
+import yfinance as yf
 import pandas as pd
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime
+import requests
 
 # --- 1. SETTING HALAMAN ---
-st.set_page_config(page_title="IDX Global Radar", layout="wide")
+st.set_page_config(page_title="IDX Super Radar", layout="wide")
 
-# INPUT API KEY ANDA DI SINI
-API_KEY = "e23149f0-8a2f-55c7-25bd-52abff88"
 PUSH_TOKEN = "o.xCp2U6AnZALtYIpfF5lTMNSccKgcUoi3"
-
-st_autorefresh(interval=60000, key="idx_full_scan")
+st_autorefresh(interval=30000, key="idx_stable_radar")
 
 # --- 2. FUNGSI ---
 def send_push(title, body):
@@ -26,97 +24,93 @@ def get_limit(price):
     if 200 < price <= 5000: return 24.0
     return 19.0
 
-st.title("🏹 IDX Full Market Momentum")
-st.caption(f"Update: {datetime.now().strftime('%H:%M:%S')} WIB")
+st.title("🏹 IDX Super Radar (150+ Active Stocks)")
+st.caption(f"Update: {datetime.now().strftime('%H:%M:%S')} WIB | Tanpa API Key")
 
-# --- 3. AMBIL DATA SELURUH SAHAM ---
-@st.cache_data(ttl=50)
-def fetch_all():
-    try:
-        url = f"https://api.goapi.io/v1/stock/idx/prices?api_key={API_KEY}"
-        res = requests.get(url, timeout=10)
-        if res.status_code == 200:
-            return res.json()['data']['results']
-        else:
-            return f"Error API: {res.status_code}"
-    except Exception as e:
-        return f"Error Koneksi: {str(e)}"
+# --- 3. DAFTAR 150 SAHAM TERAKTIF (LQ45 + KOMPAS100 + GORENGAN RAMAI) ---
+FULL_LIST = [
+    'ADRO.JK','AMRT.JK','ANKM.JK','ANTM.JK','ASII.JK','BBCA.JK','BBNI.JK','BBRI.JK','BBTN.JK','BMRI.JK',
+    'BRMS.JK','BRPT.JK','BUKA.JK','BUMI.JK','CPIN.JK','GOTO.JK','HRUM.JK','ICBP.JK','INCO.JK','INDF.JK',
+    'INKP.JK','ITMG.JK','KLBF.JK','MDKA.JK','MEDC.JK','PGAS.JK','PTBA.JK','PTPP.JK','SIDO.JK','SMGR.JK',
+    'TPIA.JK','TLKM.JK','TOWR.JK','UNTR.JK','UNVR.JK','AMMN.JK','AWAN.JK','BELI.JK','BSDE.JK','CHIP.JK',
+    'CUAN.JK','DOOH.JK','FILM.JK','GGRM.JK','HEAL.JK','MBMA.JK','MTEL.JK','MYOR.JK','NCKL.JK','PTRO.JK',
+    'ADMR.JK','AKRA.JK','AUTO.JK','BBYB.JK','BCIC.JK','BEBS.JK','BFIN.JK','BIRD.JK','BKSL.JK','BRIS.JK',
+    'CARE.JK','CARS.JK','DEWA.JK','DOID.JK','ELSA.JK','ENRG.JK','ESSA.JK','FORU.JK','GEMS.JK','HOKI.JK',
+    'HUMI.JK','INDY.JK','INKP.JK','ISAT.JK','ITMA.JK','KEEN.JK','KIJA.JK','LPKR.JK','LPPF.JK','MAIN.JK',
+    'MAPI.JK','MAPA.JK','MDSS.JK','MIKA.JK','MLPL.JK','MPPA.JK','MSIN.JK','NANO.JK','NATO.JK','NZIA.JK',
+    'PANI.JK','PANR.JK','PEGE.JK','PGRS.JK','PNBN.JK','PNLF.JK','RAJA.JK','RMKE.JK','SAGE.JK','SCMA.JK',
+    'SGER.JK','SMRA.JK','SOUL.JK','SRTG.JK','SSIA.JK','STAA.JK','TINS.JK','TRIS.JK','TYRE.JK','WIFI.JK',
+    'WIKA.JK','WTON.JK','YPAS.JK','ZATA.JK','FIRE.JK','KAYU.JK','SBMA.JK','STRK.JK','TGUK.JK','WIDI.JK'
+]
 
-data_raw = fetch_all()
+# --- 4. DATA PROCESSING ---
+@st.cache_data(ttl=25)
+def fetch_data(tickers):
+    try: 
+        return yf.download(tickers, period="5d", interval="1d", group_by='ticker', progress=False)
+    except: return None
 
-# Cek jika data_raw adalah string (berarti error)
-if isinstance(data_raw, str):
-    st.error(data_raw)
-    st.info("💡 Pastikan API Key di baris 11 sudah benar dan akun GoAPI Anda aktif.")
-elif data_raw:
-    df = pd.DataFrame(data_raw)
-    
-    # Cleaning Data
-    df['last'] = pd.to_numeric(df['last'], errors='coerce')
-    df['change_percent'] = pd.to_numeric(df['change_percent'], errors='coerce')
-    df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
-    
-    # FILTER: Harga > 50 & Ada Transaksi (Bukan Saham Tidur)
-    df = df[(df['last'] > 50) & (df['volume'] > 0)].dropna()
+raw_data = fetch_data(FULL_LIST)
 
+if raw_data is not None and not raw_data.empty:
     signals = []
     now = datetime.now()
     is_open = (9 <= now.hour < 16) and (now.weekday() < 5)
+    
+    for ticker in FULL_LIST:
+        try:
+            df_s = raw_data[ticker]
+            if len(df_s) < 3: continue
 
-    for _, row in df.iterrows():
-        ticker = row['symbol']
-        price = int(row['last'])
-        chg = row['change_percent']
-        vol = int(row['volume'])
-        
-        # Penentuan Status
-        limit = get_limit(price)
-        status = "🔎 Monitor"
-        alert = False
-        
-        if chg >= limit:
-            status = "🔥 ARA"
-            alert = True
-        elif chg >= 10:
-            status = "📈 STRONG"
-            alert = True
-        elif 3 <= chg < 10:
-            status = "🚀 MOVE"
-            # Hanya alert MOVE jika volume lumayan (diatas 20rb lot / 2jt lembar)
-            if vol > 2000000: alert = True
-        elif chg <= -limit:
-            status = "💀 ARB"
-            alert = True
-        elif chg <= -10:
-            status = "📉 DROP"
-            alert = True
+            last_price = float(df_s['Close'].iloc[-1])
+            prev_close = float(df_s['Close'].iloc[-2])
+            change = ((last_price - prev_close) / prev_close) * 100
+            
+            # Filter: Jangan tampilkan yang harganya tidak bergerak DAN volume kecil
+            last_vol = df_s['Volume'].iloc[-1]
+            if change == 0 and last_vol < 1000: continue
 
-        if alert and is_open:
-            send_push(f"{status}: {ticker}", f"{price} ({chg:.2f}%) Vol: {vol:,}")
+            # Volume Spike (vs rata-rata 5 hari)
+            avg_vol = df_s['Volume'].iloc[-6:-1].mean()
+            is_spike = last_vol > (avg_vol * 1.5) if avg_vol > 0 else False
+            vol_label = "⚡" if is_spike else ""
 
-        signals.append({
-            "Ticker": ticker,
-            "Price": price,
-            "Chg%": round(chg, 2),
-            "Volume": vol,
-            "Signal": status
-        })
+            limit_pct = get_limit(last_price)
+            status = "🔎 Monitor"
+            alert = False
+            
+            if change >= limit_pct: status = "🔥 ARA"; alert = True
+            elif change >= 10: status = "📈 STRONG"; alert = True
+            elif 3 <= change < 10: status = "🚀 MOVE"; alert = True
+            elif change <= -limit_pct: status = "💀 ARB"; alert = True
+            elif change <= -10: status = "📉 DROP"; alert = True
+
+            if alert and is_open:
+                spike_txt = " +SPIKE" if is_spike else ""
+                send_push(f"{status}{spike_txt}: {ticker.replace('.JK','')}", f"{int(last_price)} ({change:.2f}%)")
+
+            signals.append({
+                "Ticker": ticker.replace('.JK', ''),
+                "Price": int(last_price),
+                "Chg%": round(change, 2),
+                "Spike": vol_label,
+                "Signal": status,
+                "Vol": int(last_vol)
+            })
+        except: continue
 
     if signals:
-        df_final = pd.DataFrame(signals)
+        df_res = pd.DataFrame(signals)
         
-        # Tab Tampilan
-        t1, t2 = st.tabs(["🚀 HIGH MOMENTUM (UP)", "📉 DROPPING (DOWN)"])
+        tab1, tab2 = st.tabs(["🚀 MOMENTUM (UP)", "📉 DROPPING (DOWN)"])
         
-        with t1:
-            # Tampilkan yang naik, urutkan dari Volume terbesar (Spike)
-            df_up = df_final[df_final['Chg%'] >= 3].sort_values(by='Volume', ascending=False)
+        with tab1:
+            # Tampilkan yang naik, prioritaskan yang ada Spike (⚡)
+            df_up = df_res[df_res['Chg%'] >= 2].sort_values(by=['Spike', 'Chg%'], ascending=False)
             st.dataframe(df_up, use_container_width=True, hide_index=True)
             
-        with t2:
-            df_down = df_final[df_final['Chg%'] <= -3].sort_values(by='Chg%', ascending=True)
+        with tab2:
+            df_down = df_res[df_res['Chg%'] <= -2].sort_values(by='Chg%', ascending=True)
             st.dataframe(df_down, use_container_width=True, hide_index=True)
-
 else:
-    st.warning("Data kosong. Mungkin market sedang libur atau API limit.")
-
+    st.error("Gagal menarik data. Coba refresh halaman.")

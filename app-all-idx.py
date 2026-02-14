@@ -119,3 +119,4 @@ elif data_raw:
 
 else:
     st.warning("Data kosong. Mungkin market sedang libur atau API limit.")
+

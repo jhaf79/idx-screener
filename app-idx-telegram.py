@@ -19,44 +19,32 @@ def send_telegram(message):
         print(f"❌ Gagal kirim Telegram: {e}")
 
 # ======================================
-# 1️⃣ AMBIL DAFTAR SAHAM DARI IDX
+# 1️⃣ AMBIL DAFTAR SAHAM (METODE CADANGAN)
 # ======================================
-print("📊 Mengambil daftar saham IDX...")
-url = "https://www.idx.co.id/umbraco/Surface/ListedCompany/GetCompanyProfiles?emitenType=s"
-
-# Headers lengkap untuk mengelabui proteksi bot IDX
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
-    "Referer": "https://www.idx.co.id/id/perusahaan-tercatat/profil-perusahaan-tercatat/",
-    "X-Requested-With": "XMLHttpRequest"
-}
+print("📊 Mengambil daftar saham dari sumber alternatif...")
 
 symbols = []
 try:
-    # Gunakan session agar lebih menyerupai browser
-    session = requests.Session()
-    r = session.get(url, headers=headers, timeout=20)
+    # Mengambil data dari GitHub yang menyediakan list emiten IDX (lebih stabil untuk server/codespaces)
+    # Anda juga bisa menggunakan file lokal jika punya daftar CSV-nya
+    url_alt = "https://raw.githubusercontent.com/heruproyogo/idx-list/main/idx-stocks.csv"
+    r = requests.get(url_alt, timeout=15)
     
-    # Cek apakah responnya benar-benar JSON
     if r.status_code == 200:
-        try:
-            data = r.json()
-            if data and "data" in data:
-                for item in data["data"]:
-                    code = item["KodeEmiten"]
-                    symbols.append(code + ".JK")
-                print(f"✅ Berhasil mendapatkan {len(symbols)} emiten.")
-            else:
-                print("⚠️ Data tidak ditemukan dalam respon JSON.")
-        except requests.exceptions.JSONDecodeError:
-            print("❌ Gagal Decode JSON. Server mengirimkan HTML/Teks.")
-            print("Isi Respon (50 karakter pertama):", r.text[:50])
+        import io
+        df_emiten = pd.read_csv(io.StringIO(r.text))
+        # Pastikan kolom sesuai dengan header di CSV tersebut (misal: 'Symbol' atau 'Code')
+        for code in df_emiten.iloc[:, 0]: # Mengambil kolom pertama
+            symbols.append(str(code).strip() + ".JK")
+        print(f"✅ Berhasil mendapatkan {len(symbols)} emiten via Alternatif.")
     else:
-        print(f"❌ Server IDX menolak akses. Status: {r.status_code}")
+        # Jika gagal lagi, gunakan Hardcoded list sebagai usaha terakhir (Emergency list)
+        print("⚠️ Gagal akses alternatif, menggunakan daftar manual terbatas...")
+        symbols = ["BBCA.JK", "BBRI.JK", "TLKM.JK", "ASII.JK", "GOTO.JK", "BUMI.JK", "BRMS.JK", "CUAN.JK", "AMMN.JK"]
 
 except Exception as e:
-    print(f"❌ Error Koneksi: {e}")
+    print(f"❌ Error Alternatif: {e}")
+    
 # ======================================
 # 2️⃣ SCREENING HARGA DARI YAHOO FINANCE
 # ======================================

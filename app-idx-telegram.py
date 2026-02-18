@@ -19,30 +19,12 @@ def send_telegram(message):
         print(f"❌ Gagal kirim Telegram: {e}")
 
 # ======================================
-# 1️⃣ AMBIL DAFTAR SAHAM (MULTI-BACKUP)
+# 1️⃣ DAFTAR SAHAM (HARDCODED)
 # ======================================
-print("📊 Mengambil daftar saham...")
+print("📊 Menyiapkan daftar saham...")
 
-symbols = []
-# Sumber Alternatif 1: GitHub Gist (List Emiten IDX 2024/2025)
-alt_url = "https://raw.githubusercontent.com/m-fathir/daftar-saham-idx/main/emiten.csv"
-
-try:
-    r = requests.get(alt_url, timeout=10)
-    if r.status_code == 200:
-        df_list = pd.read_csv(io.StringIO(r.text))
-        # Mengambil kolom pertama yang biasanya berisi Kode Emiten
-        raw_codes = df_list.iloc[:, 0].tolist()
-        symbols = [str(c).strip() + ".JK" for c in raw_codes if len(str(c).strip()) <= 4]
-        print(f"✅ Berhasil memuat {len(symbols)} saham dari repo.")
-except:
-    print("⚠️ Repo tidak dapat diakses.")
-
-# JIKA REPO GAGAL, GUNAKAN DAFTAR MANUAL (EMERGENCY LIST)
-if not symbols:
-    print("📢 Menggunakan daftar saham populer (Emergency List)...")
-    # Daftar Ticker (Gunakan list lengkap yang Anda punya)
-emergency_list = [
+# Menggunakan daftar lengkap yang Anda berikan
+symbols = [
     "AADI.JK", "AALI.JK", "ABBA.JK", "ABDA.JK", "ABMM.JK", "ACES.JK", "ACRO.JK", "ACST.JK",
     "ADCP.JK", "ADES.JK", "ADHI.JK", "ADMF.JK", "ADMG.JK", "ADMR.JK", "ADRO.JK", "AEGS.JK",
     "AGAR.JK", "AGII.JK", "AGRO.JK", "AGRS.JK", "AHAP.JK", "AIMS.JK", "AISA.JK", "AKKU.JK",
@@ -163,32 +145,33 @@ emergency_list = [
     "WINE.JK", "WINR.JK", "WINS.JK", "WIRG.JK", "WMPP.JK", "WMUU.JK", "WOMF.JK", "WOOD.JK",
     "WOWS.JK", "WSBP.JK", "WSKT.JK", "WTON.JK", "YELO.JK", "YOII.JK", "YPAS.JK", "YULE.JK",
     "YUPI.JK", "ZATA.JK", "ZBRA.JK", "ZINC.JK"
-    # ... silakan masukkan sisa list 800+ ticker Anda di sini
 ]
+
+print(f"✅ Daftar saham siap. Total: {len(symbols)} emiten.")
+
 # ======================================
 # 2️⃣ SCREENING HARGA & VOLUME
 # ======================================
-print(f"🔍 Mulai screening {len(symbols)} saham...")
+print(f"🔍 Mulai screening {len(symbols)} saham (ini mungkin memakan waktu)...")
 results = []
 
+# Loop screening
 for symbol in symbols:
     try:
-        # Ambil data 10 hari untuk keamanan perhitungan
         df = yf.download(symbol, period="10d", interval="1d", progress=False)
         
         if df.empty or len(df) < 5:
             continue
 
-        # Perbaikan FUTUREWARNING: Gunakan .item()
+        # Ambil data menggunakan .item() untuk mencegah FutureWarning
         last_close = df["Close"].iloc[-1].item()
         prev_close = df["Close"].iloc[-2].item()
-        start_close = df["Close"].iloc[-5].item() # Harga 5 hari bursa lalu
+        start_close = df["Close"].iloc[-5].item() # 5 hari bursa lalu
         
-        # Data Volume
         current_vol = df["Volume"].iloc[-1].item()
         avg_vol = df["Volume"].iloc[-6:-1].mean().item()
 
-        # Perhitungan
+        # Hitung Perubahan
         daily_change = ((last_close - prev_close) / prev_close) * 100
         five_day_change = ((last_close - start_close) / start_close) * 100
         vol_spike = current_vol / avg_vol if avg_vol > 0 else 0
@@ -205,7 +188,7 @@ for symbol in symbols:
                     "5d_change": five_day_change,
                     "vol_spike": vol_spike
                 })
-                print(f"⭐ Match: {symbol} | +{daily_change:.2f}%")
+                print(f"⭐ Match: {symbol} | +{daily_change:.2f}% | Vol: {vol_spike:.1f}x")
 
     except Exception:
         continue
@@ -214,7 +197,7 @@ for symbol in symbols:
 # 3️⃣ URUTKAN & KIRIM KE TELEGRAM
 # ======================================
 if results:
-    # Urutkan dari kenaikan tertinggi
+    # Urutkan dari kenaikan harian tertinggi
     df_res = pd.DataFrame(results).sort_values(by="change", ascending=False).head(15)
     
     waktu = datetime.now().strftime('%d/%m/%Y %H:%M')
@@ -222,7 +205,6 @@ if results:
     msg += "───────────────────\n\n"
 
     for _, row in df_res.iterrows():
-        # Emoji api jika ada lonjakan volume > 2x lipat
         emoji = "🔥" if row['vol_spike'] > 2 else "📈"
         msg += f"{emoji} <b>{row['symbol']}</b>\n"
         msg += f"Harga: Rp{int(row['price']):,}\n"
@@ -231,7 +213,7 @@ if results:
         msg += f"Vol Spike: {row['vol_spike']:.1f}x\n\n"
 
     send_telegram(msg)
-    print("✅ Berhasil dikirim!")
+    print("✅ Laporan terkirim ke Telegram!")
 else:
     send_telegram("⚠️ Tidak ada saham yang masuk kriteria radar hari ini.")
     print("⚠️ Tidak ada hasil.")

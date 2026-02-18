@@ -65,9 +65,14 @@ for symbol in symbols:
             continue
 
         # Ambil harga penutupan terakhir dan sebelumnya
-        last_close = float(df["Close"].iloc[-1])
-        prev_close = float(df["Close"].iloc[-2])
-        first_close = float(df["Close"].iloc[0]) # Harga 7 hari lalu/awal periode
+        # Menggunakan .item() untuk memastikan kita mengambil nilai tunggal, bukan Series
+        last_close = df["Close"].iloc[-1].item()
+        prev_close = df["Close"].iloc[-2].item()
+        start_close = df["Close"].iloc[0].item()
+
+        # Jika masih ragu dengan tipe data volume:
+        current_vol = df["Volume"].iloc[-1].item()
+        avg_vol = df["Volume"].iloc[-6:-1].mean().item()
         
         change = ((last_close - prev_close) / prev_close) * 100
         five_days_change = ((last_close - first_close) / first_close) * 100

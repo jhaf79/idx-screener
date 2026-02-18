@@ -2,7 +2,6 @@ import requests
 import pandas as pd
 import yfinance as yf
 from datetime import datetime
-import time
 
 # ======================================
 # KONFIGURASI TELEGRAM
@@ -19,7 +18,7 @@ def send_telegram(message):
         print(f"❌ Gagal kirim Telegram: {e}")
 
 # ======================================
-# 1️⃣ DAFTAR SAHAM (HARDCODED)
+# 1️⃣ DAFTAR SAHAM (LIST LENGKAP ANDA)
 # ======================================
 symbols = [
     "AADI.JK", "AALI.JK", "ABBA.JK", "ABDA.JK", "ABMM.JK", "ACES.JK", "ACRO.JK", "ACST.JK",
@@ -143,89 +142,63 @@ symbols = [
     "WOWS.JK", "WSBP.JK", "WSKT.JK", "WTON.JK", "YELO.JK", "YOII.JK", "YPAS.JK", "YULE.JK",
     "YUPI.JK", "ZATA.JK", "ZBRA.JK", "ZINC.JK"
 ]
+def get_ara_limit(price):
+    """Menghitung estimasi persentase ARA berdasarkan fraksi harga IDX"""
+    if 50 <= price <= 200: return 34.0  # Toleransi dari 35%
+    elif 200 < price <= 5000: return 24.0 # Toleransi dari 25%
+    else: return 19.0 # Toleransi dari 20%
 
-# ======================================
-# 2️⃣ SCREENING HARGA & VOLUME
-# ======================================
-print(f"🔍 Mulai screening {len(symbols)} saham...")
+print(f"🔍 Memulai Radar ARA & Potensi ARA ({len(symbols)} saham)...")
 results = []
 
 for symbol in symbols:
     try:
-        # Gunakan auto_adjust=False agar kolom 'Close' murni (bukan Adj Close)
-        df = yf.download(symbol, period="10d", interval="1d", progress=False, auto_adjust=False)
-        
-        # Bersihkan data NaN
+        df = yf.download(symbol, period="5d", interval="1d", progress=False, auto_adjust=False)
         df = df.dropna()
+        if df.empty or len(df) < 2: continue
 
-        if df.empty or len(df) < 5:
-            continue
+        # Handling Multi-index
+        close_series = df['Close'][symbol] if isinstance(df.columns, pd.MultiIndex) else df['Close']
+        vol_series = df['Volume'][symbol] if isinstance(df.columns, pd.MultiIndex) else df['Volume']
 
-        # FIX HARGA: Menangani struktur baru yfinance (Multi-index)
-        # Kita ambil kolom 'Close' dan 'Volume' secara eksplisit
-        if isinstance(df.columns, pd.MultiIndex):
-            close_series = df['Close'][symbol]
-            vol_series = df['Volume'][symbol]
-        else:
-            close_series = df['Close']
-            vol_series = df['Volume']
-
-        last_close = float(close_series.iloc[-1])
-        prev_close = float(close_series.iloc[-2])
-        start_close = float(close_series.iloc[-5]) # Harga 5 hari lalu
+        last_price = float(close_series.iloc[-1])
+        prev_price = float(close_series.iloc[-2])
         
-        current_vol = float(vol_series.iloc[-1])
+        daily_change = ((last_price - prev_price) / prev_price) * 100
         avg_vol = float(vol_series.iloc[-6:-1].mean())
-
-        # Perhitungan
-        daily_change = ((last_close - prev_close) / prev_close) * 100
-        five_day_change = ((last_close - start_close) / start_close) * 100
-        vol_spike = current_vol / avg_vol if avg_vol > 0 else 0
+        vol_spike = float(vol_series.iloc[-1]) / avg_vol if avg_vol > 0 else 0
         
-        # --- KRITERIA SCREENING: AWAL BREAKOUT / POTENSI ARA ---
-        # 1. Harga wajar (bukan saham gocap)
-        # 2. Daily Change: Naik antara 3% s/d 10% (Baru mulai narik, belum terbang terlalu tinggi)
-        # 3. Volume Spike: Volume hari ini minimal 3x lipat rata-rata 5 hari sebelumnya
-        # 4. Minimal Transaksi: Volume hari ini > 100.000 lot (opsional, untuk likuiditas)
+        limit_ara = get_ara_limit(prev_price)
 
-        if 100 <= last_close <= 2000:
-            if (3 <= daily_change <= 12) and (vol_spike >= 3.0):
-                results.append({
-                    "symbol": symbol.replace(".JK", ""),
-                    "price": last_close,
-                    "change": daily_change,
-                    "5d_change": five_day_change,
-                    "vol_spike": vol_spike
-                })
-                print(f"🔥 BREAKOUT DETECTED: {symbol} | Price: {int(last_close)} | Vol: {vol_spike:.1f}x")
-
-    except Exception as e:
-        # print(f"Error {symbol}: {e}") # Aktifkan jika ingin debug per saham
-        continue
+        # KRITERIA: 
+        # 1. SUDAH ARA (Kenaikan mendekati batas)
+        # 2. POTENSI ARA (Naik > 10% DAN Volume meledak > 3x)
+        if daily_change >= limit_ara or (daily_change >= 10 and vol_spike >= 3.0):
+            status = "🚨 <b>SUDAH ARA</b>" if daily_change >= limit_ara else "🔥 <b>POTENSI ARA</b>"
+            results.append({
+                "symbol": symbol.replace(".JK", ""),
+                "price": last_price,
+                "change": daily_change,
+                "vol": vol_spike,
+                "status": status
+            })
+    except: continue
 
 # ======================================
-# 3️⃣ URUTKAN & KIRIM KE TELEGRAM
+# KIRIM LAPORAN BERULANG
 # ======================================
 if results:
-    # Urutkan berdasarkan ledakan volume tertinggi
-    df_res = pd.DataFrame(results).sort_values(by="vol_spike", ascending=False).head(10)
-    
-    waktu = datetime.now().strftime('%d/%m/%Y %H:%M')
-    msg = f"⚡ <b>RADAR EARLY BREAKOUT (VOL+)</b>\n"
-    msg += f"📅 {waktu}\n"
-    msg += "<i>Mencari saham yang baru mulai naik dengan volume jumbo</i>\n"
+    df_res = pd.DataFrame(results).sort_values(by="change", ascending=False)
+    waktu = datetime.now().strftime('%H:%M:%S')
+    msg = f"🛰 <b>RADAR ARA DETECTOR</b> ({waktu})\n"
     msg += "───────────────────\n\n"
 
     for _, row in df_res.iterrows():
-        msg += f"🚀 <b>{row['symbol']}</b>\n"
-        harga_format = f"{int(row['price']):,}".replace(",", ".")
-        msg += f"Harga: <b>Rp {harga_format}</b> ({row['change']:+.2f}%)\n"
-        msg += f"Lonjakan Vol: <b>{row['vol_spike']:.1f}x lipat</b>\n"
-        msg += f"Kondisi 5H: {row['5d_change']:.2f}%\n"
-        msg += f"🔍 <a href='https://www.tradingview.com/chart/?symbol=IDX:{row['symbol']}'>Lihat Chart</a>\n\n"
+        harga_fmt = f"{int(row['price']):,}".replace(",", ".")
+        msg += f"{row['status']}\n"
+        msg += f"Stock: <b>{row['symbol']}</b>\n"
+        msg += f"Price: Rp {harga_fmt} ({row['change']:+.2f}%)\n"
+        msg += f"Vol Spike: {row['vol']:.1f}x lipat\n\n"
 
     send_telegram(msg)
-    print("✅ Radar Breakout terkirim!")
-else:
-    send_telegram("⚠️ Tidak ada saham yang masuk kriteria hari ini.")
-    print("⚠️ Tidak ada hasil.")
+    print(f"✅ Notifikasi dikirim pada {waktu}")

@@ -22,31 +22,41 @@ def send_telegram(message):
 # 1️⃣ AMBIL DAFTAR SAHAM DARI IDX
 # ======================================
 print("📊 Mengambil daftar saham IDX...")
-url = "https://www.idx.co.id/primary/TradingSummary/GetStockSummary"
+url = "https://www.idx.co.id/umbraco/Surface/ListedCompany/GetCompanyProfiles?emitenType=s"
 
-# KRUSIAL: Tambahkan Headers agar tidak dianggap bot
+# Headers lengkap untuk mengelabui proteksi bot IDX
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-    "Referer": "https://www.idx.co.id/id/perusahaan-tercatat/profil-perusahaan-tercatat/"
+    "Accept": "application/json, text/plain, */*",
+    "Referer": "https://www.idx.co.id/id/perusahaan-tercatat/profil-perusahaan-tercatat/",
+    "X-Requested-With": "XMLHttpRequest"
 }
 
 symbols = []
 try:
-    r = requests.get(url, headers=headers, timeout=15)
+    # Gunakan session agar lebih menyerupai browser
+    session = requests.Session()
+    r = session.get(url, headers=headers, timeout=20)
+    
+    # Cek apakah responnya benar-benar JSON
     if r.status_code == 200:
-        data = r.json()
-        if "data" in data:
-            for item in data["data"]:
-                code = item["KodeEmiten"]
-                symbols.append(code + ".JK")
-            print(f"✅ Berhasil mengambil {len(symbols)} emiten.")
-        else:
-            print("⚠️ Struktur JSON IDX berubah.")
+        try:
+            data = r.json()
+            if data and "data" in data:
+                for item in data["data"]:
+                    code = item["KodeEmiten"]
+                    symbols.append(code + ".JK")
+                print(f"✅ Berhasil mendapatkan {len(symbols)} emiten.")
+            else:
+                print("⚠️ Data tidak ditemukan dalam respon JSON.")
+        except requests.exceptions.JSONDecodeError:
+            print("❌ Gagal Decode JSON. Server mengirimkan HTML/Teks.")
+            print("Isi Respon (50 karakter pertama):", r.text[:50])
     else:
-        print(f"❌ Error HTTP {r.status_code}: Server IDX menolak akses.")
-except Exception as e:
-    print(f"❌ Gagal koneksi ke IDX: {e}")
+        print(f"❌ Server IDX menolak akses. Status: {r.status_code}")
 
+except Exception as e:
+    print(f"❌ Error Koneksi: {e}")
 # ======================================
 # 2️⃣ SCREENING HARGA DARI YAHOO FINANCE
 # ======================================

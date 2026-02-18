@@ -7,7 +7,7 @@ import requests
 
 # --- 1. KONFIGURASI ---
 st.set_page_config(page_title="IDX Momentum Radar", layout="wide")
-PUSH_TOKEN = "o.xCp2U6AnZALtYIpfF5lTMNSccKgcUoi3"
+PUSH_TOKEN = "o.TMbVt9qHz6qloPzQuNno9LGa0H9F7aiV"
 st_autorefresh(interval=30000, key="idx_final_radar")
 
 # --- 2. DAFTAR SAHAM (Watchlist Anda + Gabungan Terfilter) ---
@@ -358,4 +358,5 @@ st.divider()
 if st.button("🔔 TES NOTIFIKASI KE HP"):
     send_push("✅ TEST RADAR", "Notifikasi berhasil terhubung ke radar Anda!")
     st.success("Cek HP Anda sekarang!")
+
 

@@ -181,12 +181,15 @@ for symbol in symbols:
         daily_change = ((last_close - prev_close) / prev_close) * 100
         five_day_change = ((last_close - start_close) / start_close) * 100
         vol_spike = current_vol / avg_vol if avg_vol > 0 else 0
+        
+        # --- KRITERIA SCREENING: AWAL BREAKOUT / POTENSI ARA ---
+        # 1. Harga wajar (bukan saham gocap)
+        # 2. Daily Change: Naik antara 3% s/d 10% (Baru mulai narik, belum terbang terlalu tinggi)
+        # 3. Volume Spike: Volume hari ini minimal 3x lipat rata-rata 5 hari sebelumnya
+        # 4. Minimal Transaksi: Volume hari ini > 100.000 lot (opsional, untuk likuiditas)
 
-        # --- KRITERIA SCREENING ---
-        # Range Harga: 100 - 1500
-        # Potensi: Daily > 10% ATAU 5-Hari > 30%
-        if 100 <= last_close <= 1500:
-            if daily_change >= 10 or five_day_change >= 30:
+        if 100 <= last_close <= 2000:
+            if (3 <= daily_change <= 12) and (vol_spike >= 3.0):
                 results.append({
                     "symbol": symbol.replace(".JK", ""),
                     "price": last_close,
@@ -194,7 +197,7 @@ for symbol in symbols:
                     "5d_change": five_day_change,
                     "vol_spike": vol_spike
                 })
-                print(f"⭐ Match: {symbol} | Rp {int(last_close)} | +{daily_change:.2f}%")
+                print(f"🔥 BREAKOUT DETECTED: {symbol} | Price: {int(last_close)} | Vol: {vol_spike:.1f}x")
 
     except Exception as e:
         # print(f"Error {symbol}: {e}") # Aktifkan jika ingin debug per saham
@@ -204,22 +207,24 @@ for symbol in symbols:
 # 3️⃣ URUTKAN & KIRIM KE TELEGRAM
 # ======================================
 if results:
-    df_res = pd.DataFrame(results).sort_values(by="change", ascending=False).head(15)
+    # Urutkan berdasarkan ledakan volume tertinggi
+    df_res = pd.DataFrame(results).sort_values(by="vol_spike", ascending=False).head(10)
     
     waktu = datetime.now().strftime('%d/%m/%Y %H:%M')
-    msg = f"🚀 <b>IDX TOP RADAR</b>\n📅 {waktu}\n"
+    msg = f"⚡ <b>RADAR EARLY BREAKOUT (VOL+)</b>\n"
+    msg += f"📅 {waktu}\n"
+    msg += "<i>Mencari saham yang baru mulai naik dengan volume jumbo</i>\n"
     msg += "───────────────────\n\n"
 
     for _, row in df_res.iterrows():
-        emoji = "🔥" if row['vol_spike'] > 2 else "📈"
-        msg += f"{emoji} <b>{row['symbol']}</b>\n"
-        msg += f"Harga: Rp {int(row['price']):,}\n"
-        msg += f"Harian: {row['change']:.2f}%\n"
-        msg += f"5 Hari: {row['5d_change']:.2f}%\n"
-        msg += f"Vol Spike: {row['vol_spike']:.1f}x\n\n"
+        msg += f"🚀 <b>{row['symbol']}</b>\n"
+        msg += f"Harga: <b>Rp {int(row['price']):, accounts}</b> ({row['change']:+.2f}%)\n"
+        msg += f"Lonjakan Vol: <b>{row['vol_spike']:.1f}x lipat</b>\n"
+        msg += f"Kondisi 5H: {row['5d_change']:.2f}%\n"
+        msg += f"🔍 <a href='https://www.tradingview.com/chart/?symbol=IDX:{row['symbol']}'>Lihat Chart</a>\n\n"
 
     send_telegram(msg)
-    print("✅ Berhasil dikirim ke Telegram!")
+    print("✅ Radar Breakout terkirim!")
 else:
     send_telegram("⚠️ Tidak ada saham yang masuk kriteria hari ini.")
     print("⚠️ Tidak ada hasil.")

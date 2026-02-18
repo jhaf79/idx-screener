@@ -22,7 +22,7 @@ def send_telegram(message):
 # 1️⃣ AMBIL DAFTAR SAHAM DARI IDX
 # ======================================
 print("📊 Mengambil daftar saham IDX...")
-url = "https://www.idx.co.id/umbraco/Surface/ListedCompany/GetCompanyProfiles?emitenType=s"
+url = "https://www.idx.co.id/primary/TradingSummary/GetStockSummary"
 
 # KRUSIAL: Tambahkan Headers agar tidak dianggap bot
 headers = {

@@ -272,86 +272,179 @@ symbols = [
 
 ]
 
+# ======================================
+# FUNGSI TEKNIKAL
+# ======================================
+
 def get_ara_limit(price):
-    """Menghitung estimasi persentase ARA berdasarkan fraksi harga IDX"""
-    if price <= 200: return 34.0
-    elif price <= 5000: return 24.0
-    else: return 19.0
+    if price <= 200:
+        return 34.0
+    elif price <= 5000:
+        return 24.0
+    else:
+        return 19.0
+
+def calculate_rsi(series, period=14):
+    delta = series.diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+
+    avg_gain = gain.rolling(period).mean()
+    avg_loss = loss.rolling(period).mean()
+
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
 
 # ======================================
-# 2️⃣ PROSES SCREENING (TEKNIK BULK)
+# STREAMLIT UI
 # ======================================
-st.title("🛰 IDX ARA Detector")
-if st.button("Jalankan Scanner Sekarang"):
-    with st.spinner(f"Memproses {len(symbols)} saham via Multithreading..."):
+
+st.set_page_config(page_title="Premium IDX Scanner", layout="wide")
+st.title("🏆 PREMIUM IDX MOMENTUM SCANNER")
+
+if st.button("🚀 Jalankan Institutional Scanner"):
+
+    now_hour = datetime.now().hour
+    if now_hour < 15:
+        st.warning("⚠ Market belum tutup. Scan ideal setelah 15:30.")
+
+    with st.spinner(f"Scanning {len(symbols)} saham..."):
+
         results = []
-        
+
         try:
-            # DOWNLOAD SEMUA SEKALIGUS (Jauh lebih cepat & aman dari blokir)
             all_data = yf.download(
                 tickers=symbols,
-                period="10d",
+                period="3mo",
                 interval="1d",
-                group_by='ticker',
-                threads=True, # Mengaktifkan multithreading
+                group_by="ticker",
+                threads=True,
                 progress=False,
                 auto_adjust=False
             )
 
             for symbol in symbols:
                 try:
-                    # Ambil data per ticker dari hasil bulk
-                    df = all_data[symbol].dropna()
-                    if df.empty or len(df) < 5: continue
+                    df = all_data.get(symbol)
+                    if df is None or df.empty or len(df) < 30:
+                        continue
 
-                    # Ambil harga menggunakan .item() untuk kestabilan
-                    last_price = df['Close'].iloc[-1].item()
-                    prev_price = df['Close'].iloc[-2].item()
-                    
+                    df = df.dropna()
+
+                    last_price = float(df['Close'].iloc[-1])
+                    prev_price = float(df['Close'].iloc[-2])
+
+                    # ==========================
+                    # BASIC FILTER
+                    # ==========================
+
+                    if last_price < 100:
+                        continue
+
                     daily_change = ((last_price - prev_price) / prev_price) * 100
-                    
-                    # Hitung volume spike
-                    current_vol = df['Volume'].iloc[-1].item()
-                    avg_vol = df['Volume'].iloc[-6:-1].mean().item()
-                    vol_spike = current_vol / avg_vol if avg_vol > 0 else 0
-                    
-                    limit_ara = get_ara_limit(prev_price)
 
-                    # LOGIKA: ARA atau Potensi ARA (Vol > 3x & Naik > 10%)
-                    if daily_change >= limit_ara or (daily_change >= 10 and vol_spike >= 3.0):
-                        status = "🚨 <b>SUDAH ARA</b>" if daily_change >= limit_ara else "🔥 <b>POTENSI ARA</b>"
+                    current_vol = float(df['Volume'].iloc[-1])
+                    avg_vol = float(df['Volume'].iloc[-6:-1].mean())
+
+                    if avg_vol < 1_000_000 or avg_vol == 0:
+                        continue
+
+                    vol_spike = current_vol / avg_vol
+
+                    # ==========================
+                    # TECHNICAL FILTER
+                    # ==========================
+
+                    rsi_series = calculate_rsi(df['Close'])
+                    rsi = float(rsi_series.iloc[-1])
+
+                    ma20 = float(df['Close'].rolling(20).mean().iloc[-1])
+                    high_5 = float(df['High'].iloc[-6:-1].max())
+
+                    breakout_5 = last_price > high_5
+                    breakout_ma20 = last_price > ma20
+                    rsi_strong = rsi > 60
+
+                    limit_ara = get_ara_limit(prev_price)
+                    is_ara = daily_change >= limit_ara
+
+                    strong_momentum = (
+                        daily_change >= 10 and
+                        vol_spike >= 3 and
+                        breakout_5 and
+                        breakout_ma20 and
+                        rsi_strong
+                    )
+
+                    if is_ara or strong_momentum:
+
+                        score = (
+                            daily_change * 0.4 +
+                            vol_spike * 0.3 +
+                            (rsi / 100) * 20 +
+                            (5 if breakout_5 else 0)
+                        )
+
                         results.append({
-                            "symbol": symbol.replace(".JK", ""),
+                            "symbol": symbol.replace(".JK",""),
                             "price": last_price,
                             "change": daily_change,
-                            "vol": vol_spike,
-                            "status": status
+                            "vol_spike": vol_spike,
+                            "rsi": rsi,
+                            "score": score,
+                            "status": "🚨 ARA" if is_ara else "🔥 STRONG MOMENTUM"
                         })
+
                 except:
                     continue
-        
+
         except Exception as e:
-            st.error(f"Gagal mengambil data: {e}")
+            st.error(f"Gagal ambil data: {e}")
 
     # ======================================
-    # 3️⃣ OUTPUT & NOTIFIKASI
+    # OUTPUT
     # ======================================
+
     if results:
-        df_res = pd.DataFrame(results).sort_values(by="change", ascending=False)
+
+        df_res = pd.DataFrame(results)
+        df_res = df_res.sort_values(by="score", ascending=False).head(10)
+
         waktu = datetime.now().strftime('%H:%M:%S')
-        
-        msg = f"🛰 <b>RADAR ARA DETECTOR</b> ({waktu})\n"
-        msg += "───────────────────\n\n"
+
+        msg = f"🏆 <b>INSTITUTIONAL MOMENTUM ALERT</b>\n"
+        msg += f"⏰ {waktu}\n"
+        msg += "══════════════════════\n\n"
 
         for _, row in df_res.iterrows():
-            harga_fmt = f"{int(row['price']):,}".replace(",", ".")
-            msg += f"{row['status']}\n"
-            msg += f"Stock: <b>{row['symbol']}</b>\n"
-            msg += f"Price: Rp {harga_fmt} ({row['change']:+.2f}%)\n"
-            msg += f"Vol Spike: {row['vol']:.1f}x lipat\n\n"
 
-        send_telegram(msg)
-        st.success(f"✅ Notifikasi dikirim pada {waktu}")
-        st.table(df_res)
+            harga_fmt = f"{int(row['price']):,}".replace(",", ".")
+
+            msg += f"{row['status']} | Score {row['score']:.1f}\n"
+            msg += f"<b>{row['symbol']}</b>\n"
+            msg += f"Rp {harga_fmt} ({row['change']:+.2f}%)\n"
+            msg += f"Vol {row['vol_spike']:.1f}x | RSI {row['rsi']:.1f}\n\n"
+
+        # Anti spam session
+        if "sent_today" not in st.session_state:
+            st.session_state.sent_today = set()
+
+        new_symbols = [
+            sym for sym in df_res["symbol"]
+            if sym not in st.session_state.sent_today
+        ]
+
+        if new_symbols:
+            send_telegram(msg)
+            for sym in new_symbols:
+                st.session_state.sent_today.add(sym)
+
+            st.success("✅ Institutional Alert terkirim!")
+        else:
+            st.info("ℹ Tidak ada saham baru (anti spam aktif).")
+
+        st.dataframe(df_res, use_container_width=True)
+
     else:
-        st.info("⚠️ Belum ditemukan saham ARA atau Potensi ARA.")
+        st.info("❌ Tidak ada saham strong momentum hari ini.")

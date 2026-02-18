@@ -218,7 +218,8 @@ if results:
 
     for _, row in df_res.iterrows():
         msg += f"🚀 <b>{row['symbol']}</b>\n"
-        msg += f"Harga: <b>Rp {int(row['price']):, accounts}</b> ({row['change']:+.2f}%)\n"
+        harga_format = f"{int(row['price']):,}".replace(",", ".")
+        msg += f"Harga: <b>Rp {harga_format}</b> ({row['change']:+.2f}%)\n"
         msg += f"Lonjakan Vol: <b>{row['vol_spike']:.1f}x lipat</b>\n"
         msg += f"Kondisi 5H: {row['5d_change']:.2f}%\n"
         msg += f"🔍 <a href='https://www.tradingview.com/chart/?symbol=IDX:{row['symbol']}'>Lihat Chart</a>\n\n"

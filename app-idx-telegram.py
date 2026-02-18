@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 import yfinance as yf
 from datetime import datetime
-import io
+import time
 
 # ======================================
 # KONFIGURASI TELEGRAM
@@ -21,9 +21,6 @@ def send_telegram(message):
 # ======================================
 # 1️⃣ DAFTAR SAHAM (HARDCODED)
 # ======================================
-print("📊 Menyiapkan daftar saham...")
-
-# Menggunakan daftar lengkap yang Anda berikan
 symbols = [
     "AADI.JK", "AALI.JK", "ABBA.JK", "ABDA.JK", "ABMM.JK", "ACES.JK", "ACRO.JK", "ACST.JK",
     "ADCP.JK", "ADES.JK", "ADHI.JK", "ADMF.JK", "ADMG.JK", "ADMR.JK", "ADRO.JK", "AEGS.JK",
@@ -147,38 +144,47 @@ symbols = [
     "YUPI.JK", "ZATA.JK", "ZBRA.JK", "ZINC.JK"
 ]
 
-print(f"✅ Daftar saham siap. Total: {len(symbols)} emiten.")
-
 # ======================================
 # 2️⃣ SCREENING HARGA & VOLUME
 # ======================================
-print(f"🔍 Mulai screening {len(symbols)} saham (ini mungkin memakan waktu)...")
+print(f"🔍 Mulai screening {len(symbols)} saham...")
 results = []
 
-# Loop screening
 for symbol in symbols:
     try:
-        df = yf.download(symbol, period="10d", interval="1d", progress=False)
+        # Gunakan auto_adjust=False agar kolom 'Close' murni (bukan Adj Close)
+        df = yf.download(symbol, period="10d", interval="1d", progress=False, auto_adjust=False)
         
+        # Bersihkan data NaN
+        df = df.dropna()
+
         if df.empty or len(df) < 5:
             continue
 
-        # Ambil data menggunakan .item() untuk mencegah FutureWarning
-        last_close = df["Close"].iloc[-1].item()
-        prev_close = df["Close"].iloc[-2].item()
-        start_close = df["Close"].iloc[-5].item() # 5 hari bursa lalu
-        
-        current_vol = df["Volume"].iloc[-1].item()
-        avg_vol = df["Volume"].iloc[-6:-1].mean().item()
+        # FIX HARGA: Menangani struktur baru yfinance (Multi-index)
+        # Kita ambil kolom 'Close' dan 'Volume' secara eksplisit
+        if isinstance(df.columns, pd.MultiIndex):
+            close_series = df['Close'][symbol]
+            vol_series = df['Volume'][symbol]
+        else:
+            close_series = df['Close']
+            vol_series = df['Volume']
 
-        # Hitung Perubahan
+        last_close = float(close_series.iloc[-1])
+        prev_close = float(close_series.iloc[-2])
+        start_close = float(close_series.iloc[-5]) # Harga 5 hari lalu
+        
+        current_vol = float(vol_series.iloc[-1])
+        avg_vol = float(vol_series.iloc[-6:-1].mean())
+
+        # Perhitungan
         daily_change = ((last_close - prev_close) / prev_close) * 100
         five_day_change = ((last_close - start_close) / start_close) * 100
         vol_spike = current_vol / avg_vol if avg_vol > 0 else 0
 
         # --- KRITERIA SCREENING ---
-        # 1. Harga antara 100 - 1500
-        # 2. Daily Naik > 10% ATAU 5-Hari Naik > 30%
+        # Range Harga: 100 - 1500
+        # Potensi: Daily > 10% ATAU 5-Hari > 30%
         if 100 <= last_close <= 1500:
             if daily_change >= 10 or five_day_change >= 30:
                 results.append({
@@ -188,16 +194,16 @@ for symbol in symbols:
                     "5d_change": five_day_change,
                     "vol_spike": vol_spike
                 })
-                print(f"⭐ Match: {symbol} | +{daily_change:.2f}% | Vol: {vol_spike:.1f}x")
+                print(f"⭐ Match: {symbol} | Rp {int(last_close)} | +{daily_change:.2f}%")
 
-    except Exception:
+    except Exception as e:
+        # print(f"Error {symbol}: {e}") # Aktifkan jika ingin debug per saham
         continue
 
 # ======================================
 # 3️⃣ URUTKAN & KIRIM KE TELEGRAM
 # ======================================
 if results:
-    # Urutkan dari kenaikan harian tertinggi
     df_res = pd.DataFrame(results).sort_values(by="change", ascending=False).head(15)
     
     waktu = datetime.now().strftime('%d/%m/%Y %H:%M')
@@ -207,13 +213,13 @@ if results:
     for _, row in df_res.iterrows():
         emoji = "🔥" if row['vol_spike'] > 2 else "📈"
         msg += f"{emoji} <b>{row['symbol']}</b>\n"
-        msg += f"Harga: Rp{int(row['price']):,}\n"
+        msg += f"Harga: Rp {int(row['price']):,}\n"
         msg += f"Harian: {row['change']:.2f}%\n"
         msg += f"5 Hari: {row['5d_change']:.2f}%\n"
         msg += f"Vol Spike: {row['vol_spike']:.1f}x\n\n"
 
     send_telegram(msg)
-    print("✅ Laporan terkirim ke Telegram!")
+    print("✅ Berhasil dikirim ke Telegram!")
 else:
-    send_telegram("⚠️ Tidak ada saham yang masuk kriteria radar hari ini.")
+    send_telegram("⚠️ Tidak ada saham yang masuk kriteria hari ini.")
     print("⚠️ Tidak ada hasil.")

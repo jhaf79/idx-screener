@@ -2,12 +2,19 @@ import requests
 import pandas as pd
 import yfinance as yf
 from datetime import datetime
+import streamlit as st
 
 # ======================================
-# KONFIGURASI TELEGRAM
+# KONFIGURASI PRIVASI (AMBIL DARI SECRETS)
 # ======================================
-CHAT_ID = "8522780166"
-BOT_TOKEN = "8251324177:AAHOOY4BECy0WDH3GjW4GjRURaMoKPzuAKo"
+# st.secrets secara otomatis membaca dari .streamlit/secrets.toml (lokal) 
+# atau dari menu Secrets (Streamlit Cloud)
+try:
+    BOT_TOKEN = st.secrets["BOT_TOKEN"]
+    CHAT_ID = st.secrets["CHAT_ID"]
+except KeyError:
+    st.error("Token tidak ditemukan! Pastikan sudah setting Secrets di Streamlit.")
+    st.stop()
 
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"

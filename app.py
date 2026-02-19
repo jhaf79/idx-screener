@@ -369,7 +369,7 @@ def run_scanner():
             atr = calculate_atr(df).iloc[-1]
             atr_prev = calculate_atr(df).iloc[-5:-1].mean()
 
-            # 3. Logika Institutional (Breakout & Power)
+            # 3. Logika Institutional (Breakout -10 & Power)
             is_breakout = last > df['High'].iloc[-5:-1].max()
             is_uptrend = ema20 > ema50 and last > ema20
             is_vol_expand = atr > (atr_prev * 1.1)
@@ -377,7 +377,7 @@ def run_scanner():
             limit_ara = get_ara_limit(prev)
             
             # Kriteria: Mendekati ARA / ARA + Volume meledak + Breakout + Uptrend
-            if (change >= (limit_ara - 4)) and vol_spike >= 2.0 and is_breakout and is_uptrend:
+            if (change >= (limit_ara - 4)) and vol_spike >= 2.0 and is_breakout:# and is_uptrend:
                 
                 # Scoring (Semakin tinggi semakin kuat)
                 prob_score = (change * 0.4) + (vol_spike * 0.4) + (100 if is_vol_expand else 0)
@@ -446,6 +446,7 @@ if interval > 0:
     
     time.sleep(interval * 60)
     st.rerun()
+
 
 
 

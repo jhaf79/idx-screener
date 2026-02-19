@@ -356,7 +356,7 @@ def run_scanner():
             
             # 1. Filter Likuiditas (Min Transaksi 1 Miliar Rupiah)
             turnover = last * df['Volume'].iloc[-1]
-            if turnover < 1_000_000_000: continue 
+            if turnover < 500_000_000: continue 
 
             # 2. Perhitungan Statistik
             change = ((last - prev) / prev) * 100
@@ -377,7 +377,7 @@ def run_scanner():
             limit_ara = get_ara_limit(prev)
             
             # Kriteria: Mendekati ARA / ARA + Volume meledak + Breakout + Uptrend
-            if (change >= (limit_ara - 4)) and vol_spike >= 2.5 and is_breakout and is_uptrend:
+            if (change >= (limit_ara - 4)) and vol_spike >= 2.0 and is_breakout and is_uptrend:
                 
                 # Scoring (Semakin tinggi semakin kuat)
                 prob_score = (change * 0.4) + (vol_spike * 0.4) + (100 if is_vol_expand else 0)
@@ -446,4 +446,5 @@ if interval > 0:
     
     time.sleep(interval * 60)
     st.rerun()
+
 

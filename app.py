@@ -370,7 +370,7 @@ def run_scanner():
             atr_prev = calculate_atr(df).iloc[-5:-1].mean()
 
             # 3. Logika Institutional (Breakout & Power)
-            is_breakout = last > df['High'].iloc[-10:-1].max()
+            is_breakout = last > df['High'].iloc[-5:-1].max()
             is_uptrend = ema20 > ema50 and last > ema20
             is_vol_expand = atr > (atr_prev * 1.1)
             
@@ -446,5 +446,6 @@ if interval > 0:
     
     time.sleep(interval * 60)
     st.rerun()
+
 
 

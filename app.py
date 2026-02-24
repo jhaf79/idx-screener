@@ -214,45 +214,56 @@ def analyze_all(df_all):
 
             volma = data['Volume'].rolling(20).mean().iloc[-1]
 
+            change=(c-prev['Close'])/prev['Close']
 
-            # BSJP
+
+            # ==================
+            # BSJP (lebih sensitif)
+            # ==================
 
             score=0
 
-            if c>o: score+=20
-            if c>=h*0.99: score+=50
-            if vol>volma*1.5: score+=30
+            if c>o: score+=30
 
-            if score>=80:
+            if c>=h*0.97: score+=40
+
+            if vol>volma: score+=30
+
+            if score>=60:
 
                 bsjp.append([ticker,c,score,value])
 
 
+            # ==================
             # DAYTRADE
+            # ==================
 
             score=0
 
-            change=(c-prev['Close'])/prev['Close']
+            if ma5>ma20: score+=40
 
-            if ma5>ma20: score+=30
-            if change>0.03: score+=30
-            if vol>volma*2: score+=40
+            if change>0.01: score+=30
 
-            if score>=70:
+            if vol>volma*1.5: score+=30
+
+            if score>=60:
 
                 dt.append([ticker,c,score,value])
 
 
+            # ==================
             # SCALPER
+            # ==================
 
             score=0
 
             range=(h-l)/l
 
-            if range>0.05: score+=40
-            if vol>volma*3: score+=60
+            if range>0.03: score+=50
 
-            if score>=100:
+            if vol>volma*2: score+=50
+
+            if score>=60:
 
                 sc.append([ticker,c,score,value])
 
@@ -291,4 +302,5 @@ if st.button("SCAN SEKARANG"):
 
 
 st.caption(f"Update : {datetime.now()}")
+
 
